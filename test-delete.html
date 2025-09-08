@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Delete Button</title>
+</head>
+<body>
+    <h1>Test de Botón Eliminar</h1>
+    
+    <button onclick="testDelete()" style="background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
+        🗑️ Test Delete
+    </button>
+    
+    <script>
+        function testDelete() {
+            alert('¡BOTÓN FUNCIONA!');
+            if (confirm('¿Eliminar?')) {
+                alert('Confirmado - eliminaría el elemento');
+            }
+        }
+        
+        // Test si JavaScript funciona
+        console.log('JavaScript cargado correctamente');
+        alert('Página de test cargada - JavaScript funciona');
+    </script>
+</body>
+</html>
