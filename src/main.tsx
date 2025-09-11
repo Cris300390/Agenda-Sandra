@@ -1,18 +1,15 @@
+// src/main.tsx — HashRouter sin seed
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import App from './App'
 import Agenda from './pages/Agenda'
 import Alumnos from './pages/Alumnos'
 import Pagos from './pages/Pagos'
 import Informes from './pages/Informes'
-import { seedIfEmpty } from './db'
 
-// Seed demo data on first run (non-blocking)
-seedIfEmpty()
-
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/',
     element: <App />,
