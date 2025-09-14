@@ -1,3 +1,42 @@
+/* =========================
+   Variables y base visual
+   ========================= */
+:root{
+  --bg-1:#f9f7ff;         /* lila muy claro */
+  --bg-2:#fffdfd;         /* casi blanco cálido */
+  --card:#ffffff;         /* tarjetas */
+  --text:#1f2937;         /* gris oscuro legible */
+  --accent:#e879f9;       /* rosa-lila suave para detalles */
+  --accent-2:#a78bfa;     /* lila complemento */
+  --slot-sep:#ede9fe;     /* separadores de tramos */
+  --slot-zebra:#faf5ff;   /* franja alterna muy sutil */
+  --shadow:0 10px 25px rgba(0,0,0,.06);
+  --radius:16px;
+
+  /* Paleta pastel para tramos (accesible y suave) */
+  --slot-c1: #fff1f5; /* rosa muy claro */
+  --slot-c2: #f2f7ff; /* azul claro */
+  --slot-c3: #f6fff1; /* verde claro */
+  --slot-c4: #fffaf1; /* naranja crema */
+  --slot-c5: #f6f1ff; /* lila claro */
+  --slot-c6: #f1fffb; /* turquesa muy claro */
+
+  --slot-border-1: #ffd7e4;
+  --slot-border-2: #cfe1ff;
+  --slot-border-3: #d8f7c4;
+  --slot-border-4: #ffe2bf;
+  --slot-border-5: #d9ccff;
+  --slot-border-6: #bff3e6;
+}
+
+/* Fondo general amable */
+body{
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  color: var(--text);
+  margin: 0;
+}
+
+/* Contenedor raíz (Vite) */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,27 +44,156 @@
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+/* Contenedor principal extra (opcional) */
+.main-container{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
 }
+
+/* Tarjetas (resumen del día, etc.) */
+.card{
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid #f3f0ff;
+  padding: 2em; /* mantiene tu padding anterior */
+}
+
+/* Cabeceras de sección con degradado en el texto */
+.section-title{
+  font-weight: 800;
+  font-size: 1.8rem;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* =========================
+   Logo demo Vite/React
+   ========================= */
+.logo { height: 6em; padding: 1.5em; will-change: filter; transition: filter 300ms; }
 .logo:hover { filter: drop-shadow(0 0 2em #646cffaa); }
 .logo.react:hover { filter: drop-shadow(0 0 2em #61dafbaa); }
 
-@keyframes logo-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+@keyframes logo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo { animation: logo-spin infinite 20s linear; }
 }
 
-.card { padding: 2em; }
 .read-the-docs { color: #888; }
 
-/* ====== ALUMNOS (UI Pro) ====== */
+/* =========================
+   AGENDA — Tramos horarios
+   ========================= */
+
+/* Contenedor de lista de tramos */
+.slots { display: grid; gap: 10px; }
+
+/* Fila de tramo de agenda */
+.slot-row{
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr 1fr auto; /* hora | alumno | inicio | fin | botón */
+  gap: 12px;
+  padding: 14px 16px;
+  align-items: center;
+  border: 1px solid var(--slot-sep);
+  border-radius: 12px;
+  background: #fff;
+  transition: transform .08s ease, box-shadow .08s ease, background .2s, border-color .2s;
+  position: relative;
+  overflow: hidden;
+  /* variable local para la franja lateral */
+  --slot-accent: var(--slot-sep);
+}
+
+/* Zebra (se verá solo si no coincide con la paleta pastel de abajo) */
+.slot-row:nth-child(odd){ background: var(--slot-zebra); }
+.slot-row + .slot-row{ margin-top: 0; } /* ya hay gap en .slots */
+
+/* Hover (en PC) */
+.slot-row:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+}
+
+/* Columna de la hora más “fuerte” */
+.slot-hour{
+  font-weight: 800;
+  font-size: 1.1rem;
+  text-align: left;
+}
+
+/* Etiqueta pequeña bajo la hora (Disponible/Reservado) */
+.slot-status{ font-size: .9rem; opacity: .8; }
+
+/* Botón Añadir */
+.btn-add{
+  border-radius: 10px;
+  padding: 10px 14px;
+  border: 1px solid #eee;
+  background: #fff;
+  cursor: pointer;
+}
+.btn-add:active{ transform: translateY(1px); }
+
+/* ====== Color por tramo (cíclico cada 6) ====== */
+.slots > .slot-row:nth-child(6n + 1){
+  background: linear-gradient(180deg, var(--slot-c1), #ffffff);
+  border-color: var(--slot-border-1);
+  box-shadow: 0 6px 14px rgba(255, 105, 180, .08);
+  --slot-accent: var(--slot-border-1);
+}
+.slots > .slot-row:nth-child(6n + 2){
+  background: linear-gradient(180deg, var(--slot-c2), #ffffff);
+  border-color: var(--slot-border-2);
+  box-shadow: 0 6px 14px rgba(100, 149, 237, .08);
+  --slot-accent: var(--slot-border-2);
+}
+.slots > .slot-row:nth-child(6n + 3){
+  background: linear-gradient(180deg, var(--slot-c3), #ffffff);
+  border-color: var(--slot-border-3);
+  box-shadow: 0 6px 14px rgba(46, 204, 113, .08);
+  --slot-accent: var(--slot-border-3);
+}
+.slots > .slot-row:nth-child(6n + 4){
+  background: linear-gradient(180deg, var(--slot-c4), #ffffff);
+  border-color: var(--slot-border-4);
+  box-shadow: 0 6px 14px rgba(255, 159, 67, .08);
+  --slot-accent: var(--slot-border-4);
+}
+.slots > .slot-row:nth-child(6n + 5){
+  background: linear-gradient(180deg, var(--slot-c5), #ffffff);
+  border-color: var(--slot-border-5);
+  box-shadow: 0 6px 14px rgba(155, 89, 182, .08);
+  --slot-accent: var(--slot-border-5);
+}
+.slots > .slot-row:nth-child(6n){
+  background: linear-gradient(180deg, var(--slot-c6), #ffffff);
+  border-color: var(--slot-border-6);
+  box-shadow: 0 6px 14px rgba(26, 188, 156, .08);
+  --slot-accent: var(--slot-border-6);
+}
+
+/* Franja lateral sutil del color del tramo */
+.slots > .slot-row::before{
+  content: "";
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: var(--slot-accent);
+  opacity: .25;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Ajuste de contraste de la hora para que destaque siempre */
+.slot-hour{ color: #0f172a; }
+
+/* =========================
+   ALUMNOS (UI Pro)
+   ========================= */
 .al-card { max-width: 1100px; margin: 18px auto; }
 .al-head { display: grid; gap: 12px; }
 .al-title { margin: 0 0 6px 0; font-size: 1.6rem; }
@@ -44,19 +212,16 @@
 }
 .chip-active { background: #ffe7f1; border-color: #ffc7da; }
 
-/* ===== LISTA EN UNA SOLA COLUMNA (franja larga) ===== */
+/* Lista en una sola columna (franja larga) */
 .al-list {
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1fr;   /* ← SIEMPRE una tarjeta por fila */
+  grid-template-columns: 1fr;
   gap: 12px;
 }
-/* nos aseguramos de que NUNCA cambie a 2 columnas */
-@media (min-width: 980px) {
-  .al-list { grid-template-columns: 1fr; }
-}
+@media (min-width: 980px) { .al-list { grid-template-columns: 1fr; } }
 
 /* Tarjeta de alumno */
 .student-card {
@@ -71,7 +236,7 @@
   grid-template-columns: 1fr auto;  /* info + acciones */
   align-items: center;
   gap: 8px;
-  border-top: none;                  /* quitamos la línea separadora antigua */
+  border-top: none;
 }
 .al-left { display: flex; gap: 12px; align-items: center; }
 .al-dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; }
@@ -79,11 +244,13 @@
 .al-sub { color: #6b7280; font-size: .92rem; }
 .al-actions-row { display: flex; gap: 8px; }
 
+/* Badges */
 .badge { font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: .78rem; border: 1px solid transparent; }
 .badge-green { background: #e8fff6; color: #0f7a48; border-color: #b7f3d4; }
 .badge-gray { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+.badge-balance { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
 
-/* Botones */
+/* Botones genéricos */
 .btn { height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #e1e2ea; background: #fff; font-weight: 700; cursor: pointer; }
 .btn-primary { background: linear-gradient(90deg, #ff6aa2, #ff8bc2); color: #111; }
 .btn-ghost { background: #fff; }
@@ -93,13 +260,6 @@
 
 /* Mensaje lista vacía */
 .al-empty { padding: 24px 0; color: #6b7280; text-align: center; }
-
-/* Badge extra: Saldo */
-.badge-balance {
-  background: #eef2ff;
-  color: #3730a3;
-  border-color: #c7d2fe;
-}
 
 /* Modal */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; z-index: 50; }
@@ -113,7 +273,6 @@
 .field-row { display: flex; align-items: center; gap: 8px; }
 .field-full { grid-column: 1 / -1; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
-
 @media (max-width: 720px) {
   .al-actions { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
@@ -149,3 +308,146 @@
 .badge-estado { font-size: .75rem; padding: .15rem .5rem; border-radius: 999px; }
 .alumno-card.ok .badge-estado { background: #dcfce7; color: #166534; }
 .alumno-card.deuda .badge-estado { background: #fee2e2; color: #991b1b; }
+/* =========================
+   DIFERENCIAR TRAMOS (auto)
+   Aplica a TODOS los hijos directos de .slots
+   ========================= */
+
+/* Estilo base de cada tramo */
+.slots > *{
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr 1fr auto; /* hora | alumno | inicio | fin | botón */
+  gap: 12px;
+  padding: 14px 16px;
+  align-items: center;
+  border: 1px solid var(--slot-sep);
+  border-radius: 12px;
+  background: #fff;
+  transition: transform .08s ease, box-shadow .08s ease, background .2s, border-color .2s;
+  position: relative;
+  overflow: hidden;
+  --slot-accent: var(--slot-sep);
+}
+
+/* Zebra básica (por si alguna fila no entra en el ciclo) */
+.slots > *:nth-child(odd){ background: var(--slot-zebra); }
+
+/* Hover (en PC) */
+.slots > *:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+}
+
+/* Franja lateral del color del tramo */
+.slots > *::before{
+  content: "";
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: var(--slot-accent);
+  opacity: .25;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* Ciclo de colores pastel (cada 6 tramos) */
+.slots > *:nth-child(6n + 1){
+  background: linear-gradient(180deg, var(--slot-c1), #ffffff);
+  border-color: var(--slot-border-1);
+  box-shadow: 0 6px 14px rgba(255, 105, 180, .08);
+  --slot-accent: var(--slot-border-1);
+}
+.slots > *:nth-child(6n + 2){
+  background: linear-gradient(180deg, var(--slot-c2), #ffffff);
+  border-color: var(--slot-border-2);
+  box-shadow: 0 6px 14px rgba(100, 149, 237, .08);
+  --slot-accent: var(--slot-border-2);
+}
+.slots > *:nth-child(6n + 3){
+  background: linear-gradient(180deg, var(--slot-c3), #ffffff);
+  border-color: var(--slot-border-3);
+  box-shadow: 0 6px 14px rgba(46, 204, 113, .08);
+  --slot-accent: var(--slot-border-3);
+}
+.slots > *:nth-child(6n + 4){
+  background: linear-gradient(180deg, var(--slot-c4), #ffffff);
+  border-color: var(--slot-border-4);
+  box-shadow: 0 6px 14px rgba(255, 159, 67, .08);
+  --slot-accent: var(--slot-border-4);
+}
+.slots > *:nth-child(6n + 5){
+  background: linear-gradient(180deg, var(--slot-c5), #ffffff);
+  border-color: var(--slot-border-5);
+  box-shadow: 0 6px 14px rgba(155, 89, 182, .08);
+  --slot-accent: var(--slot-border-5);
+}
+.slots > *:nth-child(6n){
+  background: linear-gradient(180deg, var(--slot-c6), #ffffff);
+  border-color: var(--slot-border-6);
+  box-shadow: 0 6px 14px rgba(26, 188, 156, .08);
+  --slot-accent: var(--slot-border-6);
+}
+
+/* Asegura buena legibilidad de la hora si tu HTML tiene esa columna */
+.slots > * .slot-hour{ color: #0f172a; font-weight: 800; font-size: 1.1rem; text-align: left; }
+
+/* ============ iPhone 14 Pro Max (≤430px) ============ */
+@media (max-width: 430px){
+  /* usa toda la pantalla respetando notch */
+  body{
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* 1 sola columna: tabla arriba, panel a la siguiente fila */
+  :root{ --agenda-cols: 1fr; }
+
+  /* compactar paddings globales */
+  #root{ padding: 12px; }
+  .card{ padding: 16px; }
+
+  /* filas de tramos: más compactas y legibles */
+  .slots{ gap: 8px; }
+  .slots > *{
+    grid-template-columns: 92px 1fr; /* hora | todo lo demás apilado */
+    gap: 8px;
+    padding: 12px;
+    min-height: auto;
+  }
+  .slots > * .slot-hour{ font-size: 1rem; }
+  .slots > * select,
+  .slots > * input,
+  .slots > * button{
+    width: 100%;
+    height: 40px;
+  }
+
+  /* Tabla del día como “tarjetas”: quitamos cabecera y apilamos celdas */
+  table[aria-label="Agenda del día"] thead{ display: none; }
+  table[aria-label="Agenda del día"] tbody tr{ display: block; margin-bottom: 12px; }
+  table[aria-label="Agenda del día"] tbody td{ display: block; }
+
+  /* Panel derecho: respirando y con textos más grandes */
+  aside[aria-label="Horas ocupadas"]{
+    padding: 16px;
+    border-radius: 12px;
+  }
+  aside[aria-label="Horas ocupadas"] h4{
+    font-size: 18px;
+  }
+  aside[aria-label="Horas ocupadas"] .metric{
+    font-size: 22px;
+    font-weight: 800;
+  }
+
+  /* Botones superiores (Hoy/Anterior/Siguiente) apilados si no caben */
+  [aria-labelledby="tabla-dia"] .buttons,
+  [aria-labelledby="tabla-mes"] .buttons{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+

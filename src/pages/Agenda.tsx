@@ -14,7 +14,14 @@ import { es } from 'date-fns/locale'
 import { db } from '../db'
 import { isHoliday } from '../util/holidays'
 
-type CalendarEvent = { id?: number; title: string; start: Date; end: Date; color?: string; studentId?: number }
+type CalendarEvent = {
+  id?: number
+  title: string
+  start: Date
+  end: Date
+  color?: string
+  studentId?: number
+}
 
 export default function Agenda() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -103,7 +110,7 @@ export default function Agenda() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <h3 id="tabla-dia" style={{ margin: 0, color: '#be185d', fontSize: 24, fontWeight: 700 }}>Agenda del Día</h3>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div className="buttons" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <button onClick={() => setCurrentDate(new Date())}>🏠 Hoy</button>
                   <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 1))}>← Anterior</button>
                   <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1))}>Siguiente →</button>
@@ -134,7 +141,7 @@ export default function Agenda() {
                 await db.classes.add({ studentId: student.id!, title: 'Clase', start: startTime.toISOString(), end: endTime.toISOString() })
                 await loadEvents()
               }}
-              onDeleteEvent={async () => { await loadEvents() }}  // aceptada pero no usada dentro del componente
+              onDeleteEvent={async () => { await loadEvents() }}
               onUpdateEvent={async (evId, newStart, newEnd, newStudentId) => {
                 await db.classes.update(evId, { start: newStart.toISOString(), end: newEnd.toISOString(), studentId: newStudentId })
                 await loadEvents()
@@ -153,12 +160,22 @@ type DayTableProps = {
   date: Date
   events: CalendarEvent[]
   onCreateAtSlot?: (slot: string, studentId?: number, start?: string, end?: string) => void
-  onDeleteEvent?: (ev: CalendarEvent) => void   // la aceptamos, pero no la usamos para evitar TS6133
+  onDeleteEvent?: (ev: CalendarEvent) => void
   onUpdateEvent?: (evId: number, newStart: Date, newEnd: Date, studentId?: number) => void
 }
 
+/** Colores pastel por índice (cíclico cada 6) */
+function slotColors(idx: number) {
+  const bg1 = ['#fff1f5','#f2f7ff','#f6fff1','#fffaf1','#f6f1ff','#f1fffb'][idx % 6]
+  const border = ['#ffd7e4','#cfe1ff','#d8f7c4','#ffe2bf','#d9ccff','#bff3e6'][idx % 6]
+  const shadowRGBA = [
+    'rgba(255,105,180,.08)','rgba(100,149,237,.08)','rgba(46,204,113,.08)',
+    'rgba(255,159,67,.08)','rgba(155,89,182,.08)','rgba(26,188,156,.08)'
+  ][idx % 6]
+  return { bg1, border, shadow: shadowRGBA }
+}
+
 function DayTable(props: DayTableProps) {
-  // Importante: NO desestructuramos onDeleteEvent para que no marque "no usado"
   const { date, events, onCreateAtSlot, onUpdateEvent } = props
   const MAX_PER_SLOT = 10
 
@@ -193,7 +210,8 @@ function DayTable(props: DayTableProps) {
   return (
     <div style={{ background: 'white', borderRadius: '0 0 20px 20px', border: '1px solid #f3e8ff', borderTop: 'none' }}>
       <div style={{ overflowX: 'auto', padding: 32 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
+        {/* 🔧 Responsive: usamos la variable --agenda-cols que definiste en App.css */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'var(--agenda-cols, 1fr 320px)', gap: 24 }}>
           <table role="table" aria-label="Agenda del día" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
             <thead>
               <tr>
@@ -202,14 +220,37 @@ function DayTable(props: DayTableProps) {
               </tr>
             </thead>
             <tbody>
-              {timeSlots.map((slot) => {
+              {timeSlots.map((slot, idx) => {
                 const eventsInSlot = findEventsInSlot(slot)
                 const isAtCapacity = eventsInSlot.length >= MAX_PER_SLOT
                 const isLongGap = eventsInSlot.length === 0
+                const { bg1, border, shadow } = slotColors(idx)
+
+                const leftCellStyle: React.CSSProperties = {
+                  padding: 0, verticalAlign: 'top',
+                  background: `linear-gradient(180deg, ${bg1}, #ffffff)`,
+                  border: `1px solid ${border}`,
+                  borderRight: 'none',
+                  borderRadius: '12px 0 0 12px',
+                  boxShadow: `0 6px 14px ${shadow}`,
+                  position: 'relative',
+                  minWidth: 0
+                }
+
+                const rightCellStyle: React.CSSProperties = {
+                  padding: 0, verticalAlign: 'top',
+                  background: `linear-gradient(180deg, ${bg1}, #ffffff)`,
+                  border: `1px solid ${border}`,
+                  borderLeft: 'none',
+                  borderRadius: '0 12px 12px 0',
+                  boxShadow: `0 6px 14px ${shadow}`,
+                  position: 'relative',
+                  minWidth: 0
+                }
 
                 return (
                   <tr key={slot}>
-                    <td style={{ padding: 0, verticalAlign: 'top' }}>
+                    <td style={leftCellStyle}>
                       <div style={{ padding: '20px 16px', minHeight: 120 }}>
                         <div style={{ fontSize: 18, fontWeight: 800 }}>{slot}</div>
                         <div style={{ fontSize: 18, fontWeight: 800 }}>
@@ -220,7 +261,9 @@ function DayTable(props: DayTableProps) {
                       </div>
                     </td>
 
-                    <td style={{ padding: 0, verticalAlign: 'top' }}>
+                    <td style={rightCellStyle}>
+                      {/* franja acento derecha */}
+                      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 6, background: border, opacity: .25, borderRadius: '0 12px 12px 0' }} />
                       {eventsInSlot.length > 0 ? (
                         <div style={{ padding: '20px 24px', minHeight: 120 }}>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
@@ -251,7 +294,7 @@ function DayTable(props: DayTableProps) {
   )
 }
 
-/* ---------- InlineAdd (FALTABA) ---------- */
+/* ---------- InlineAdd ---------- */
 function InlineAdd({
   slot, onCreate, disabled, max, compact
 }: {
@@ -333,7 +376,8 @@ function AsideResumen({ dayEvents, timeSlots, findEventsInSlot }:{
             <span style={{ fontSize: 24, fontWeight: 800 }}>{dayEvents.length}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <span>👥 Estudiantes Únicos</span>
+            {/* Cambiado a “Alumnos” (únicos) */}
+            <span>👥 Alumnos</span>
             <span style={{ fontSize: 24, fontWeight: 800 }}>{new Set(dayEvents.map(e => e.title)).size}</span>
           </div>
         </div>
@@ -457,7 +501,8 @@ function EditablePill({ event, onUpdate }: { event: CalendarEvent; onUpdate?: (e
 function MonthTable({
   date, events, onPickDay, onPrevMonth, onNextMonth, onToday
 }: {
-  date: Date; events: CalendarEvent[]; onPickDay: (d: Date) => void; onPrevMonth: () => void; onNextMonth: () => void; onToday: () => void
+  date: Date; events: CalendarEvent[]
+  onPickDay: (d: Date) => void; onPrevMonth: () => void; onNextMonth: () => void; onToday: () => void
 }) {
   const start = startOfWeek(startOfMonth(date), { weekStartsOn: 1 })
   const end = endOfWeek(endOfMonth(date), { weekStartsOn: 1 })
@@ -478,7 +523,7 @@ function MonthTable({
         <h3 id="tabla-mes" style={{ margin: 0, color: '#1e293b', fontSize: 28, fontWeight: 700 }}>
           {format(date, 'LLLL yyyy', { locale: es })}
         </h3>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="buttons" style={{ display: 'flex', gap: 8 }}>
           <button onClick={onToday}>🏠 Hoy</button>
           <button onClick={onPrevMonth}>← Anterior</button>
           <button onClick={onNextMonth}>Siguiente →</button>

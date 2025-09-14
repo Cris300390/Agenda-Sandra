@@ -2,8 +2,15 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Ajuste móvil + notch (iPhone 14 Pro Max y otros) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- Color de la barra del navegador / PWA -->
     <meta name="theme-color" content="#ec4899" />
+    <!-- Opcional iOS (PWA standalone y barra translúcida) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
     <title>Agenda Sandra</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   </head>
@@ -12,3 +19,5 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
+
