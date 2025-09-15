@@ -10,6 +10,7 @@ import {
   getStudentBalance,
 } from '../db'
 
+/* Utilidades simples */
 function ymFromDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
@@ -21,23 +22,55 @@ function eur(n: number) {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n ?? 0)
 }
 
+/* CSV helpers */
+function csvEscape(v: string) {
+  const needs = /[",;\n]/.test(v)
+  const escaped = v.replaceAll('"', '""')
+  return needs ? `"${escaped}"` : escaped
+}
+function toCsvLines(data: Array<{ fecha: string; tipo: string; importe: number; nota: string; paga: string }>) {
+  const header = ['Fecha', 'Tipo', 'Importe', 'Nota', 'Quién paga']
+  const rows = data.map(r => [
+    csvEscape(r.fecha),
+    csvEscape(r.tipo),
+    String(r.importe).replace('.', ','), // coma decimal para Excel ES
+    csvEscape(r.nota),
+    csvEscape(r.paga),
+  ])
+  return [header, ...rows].map(arr => arr.join(';')) // separador ;
+}
+
 export default function Pagos() {
-  // Estado UI
+  /* Estado base */
   const [students, setStudents] = useState<Student[]>([])
   const [studentId, setStudentId] = useState<number | ''>('')
   const [monthDate, setMonthDate] = useState<Date>(() => {
     const saved = localStorage.getItem('pagos.month')
     return saved ? new Date(saved) : new Date()
   })
-  const [amountDebt, setAmountDebt] = useState<string>('')   // input para DEUDA
-  const [amountPay, setAmountPay] = useState<string>('')    // input para PAGO
-  const [note, setNote] = useState<string>('')              // nota opcional
-  const [rows, setRows] = useState<Movement[]>([])          // movimientos (mes del alumno)
-  const [monthTotals, setMonthTotals] = useState({ debt: 0, paid: 0, pending: 0 })
-  const [globalTotals, setGlobalTotals] = useState({ debt: 0, paid: 0, pending: 0 })
   const ym = useMemo(() => ymFromDate(monthDate), [monthDate])
 
-  // Cargar alumnos una vez
+  /* Inputs rápidos */
+  const [note, setNote] = useState<string>('')
+  const [amountDebt, setAmountDebt] = useState<string>('') // para DEUDA
+  const [amountPay, setAmountPay] = useState<string>('') // para PAGO
+
+  /* Fecha manual del movimiento (datetime-local) */
+  const [whenISO, setWhenISO] = useState<string>(() => {
+    const d = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  })
+
+  /* Quién paga (solo para pago) */
+  const [payer, setPayer] = useState<string>('') // '', Madre, Padre, Alumna, Alumno, Otro
+
+  /* Datos del mes */
+  const [rows, setRows] = useState<Movement[]>([])
+  const [monthTotals, setMonthTotals] = useState({ debt: 0, paid: 0, pending: 0 })
+  const [globalTotals, setGlobalTotals] = useState({ debt: 0, paid: 0, pending: 0 })
+
+  /* Cargar alumnos una vez */
   useEffect(() => {
     db.students.toArray().then(list => {
       const ordered = list.sort((a, b) => a.name.localeCompare(b.name))
@@ -48,7 +81,7 @@ export default function Pagos() {
     })
   }, [])
 
-  // Cargar movimientos y totales cada vez que cambie alumno o mes
+  /* Cargar datos cuando cambie alumno o mes */
   useEffect(() => {
     if (!studentId) return
     localStorage.setItem('pagos.month', monthDate.toISOString())
@@ -57,7 +90,6 @@ export default function Pagos() {
   }, [studentId, ym])
 
   async function loadMonthData(sId: number, ymKey: string) {
-    // traemos TODOS los movimientos del alumno y filtramos por mes YYYY-MM
     const all = await db.movements.where('studentId').equals(sId).toArray()
     const monthRows = all
       .filter(r => (r.date ?? '').slice(0, 7) === ymKey)
@@ -76,12 +108,13 @@ export default function Pagos() {
     setGlobalTotals(t)
   }
 
-  // Acciones UI
+  /* Acciones: añadir deuda/pago, editar, eliminar */
   async function onAddDebt() {
     if (!studentId) return
     const v = toMoney(parseFloat(amountDebt))
     if (!v || v <= 0) return alert('Importe de DEUDA inválido')
-    await addDebt(studentId, v, note || '', new Date())
+    const when = whenISO ? new Date(whenISO) : new Date()
+    await addDebt(studentId, v, note || '', when)
     setAmountDebt('')
     setNote('')
     await loadMonthData(studentId, ym)
@@ -92,9 +125,9 @@ export default function Pagos() {
     if (!studentId) return
     const v = toMoney(parseFloat(amountPay))
     if (!v || v <= 0) return alert('Importe de PAGO inválido')
-    await addPayment(studentId, v, note || '', new Date())
+    const when = whenISO ? new Date(whenISO) : new Date()
+    await addPayment(studentId, v, note || '', when, payer || undefined)
     setAmountPay('')
-    setNote('')
     await loadMonthData(studentId, ym)
     await loadGlobalTotals(studentId)
   }
@@ -122,22 +155,53 @@ export default function Pagos() {
     }
   }
 
+  /* Exportar CSV del mes (alumno seleccionado) */
+  async function exportMonthCSV() {
+    if (!studentId) return
+    const studentName = students.find(s => s.id === studentId)?.name ?? 'alumno'
+    const data = rows.map(r => ({
+      fecha: format(new Date(r.date), 'dd/MM/yyyy HH:mm'),
+      tipo: r.type === 'debt' ? 'Deuda' : 'Pago',
+      importe: toMoney(r.amount),
+      nota: r.note ?? '',
+      paga: r.payer ?? '',
+    }))
+
+    // Fila de totales del mes (dejamos pendiente en "Importe")
+    data.push({
+      fecha: '',
+      tipo: 'Totales del mes',
+      importe: toMoney(monthTotals.pending),
+      nota: `Deuda=${toMoney(monthTotals.debt)}; Pagado=${toMoney(monthTotals.paid)}`,
+      paga: '',
+    })
+
+    const lines = toCsvLines(data)
+    const bom = '\uFEFF'
+    const csv = bom + lines.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const filename = `pagos_${studentName.replaceAll(' ', '_')}_${ym}.csv`
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   const monthLabel = format(monthDate, "LLLL 'de' yyyy", { locale: es })
 
   return (
     <div className="page pagos">
       <h2>Pagos</h2>
 
-      {/* Fila de controles */}
+      {/* Barra superior: mes y alumno */}
       <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           <div><strong>Mes</strong></div>
-          <select
-            value={monthLabel}
-            onChange={() => {}}
-            style={{ display: 'none' }}
-            aria-hidden
-          />
           <button onClick={() => setMonthDate(addMonths(monthDate, -1))}>Anterior</button>
           <div style={{ minWidth: 180, textTransform: 'capitalize' }}>{monthLabel}</div>
           <button onClick={() => setMonthDate(addMonths(monthDate, 1))}>Siguiente</button>
@@ -158,8 +222,21 @@ export default function Pagos() {
         </div>
       </div>
 
-      {/* Acciones rápidas: añadir DEUDA y añadir PAGO */}
+      {/* Controles de entrada */}
       <div className="card" style={{ padding: '1rem', marginBottom: '1rem', display: 'grid', gap: '0.75rem' }}>
+        {/* Fecha del movimiento */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+          <label>
+            <span style={{ marginRight: 6 }}>Fecha</span>
+            <input
+              type="datetime-local"
+              value={whenISO}
+              onChange={(e) => setWhenISO(e.target.value)}
+            />
+          </label>
+        </div>
+
+        {/* Nota */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           <label>
             <span style={{ marginRight: 6 }}>Nota</span>
@@ -172,7 +249,9 @@ export default function Pagos() {
           </label>
         </div>
 
+        {/* Deuda y Pago */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+          {/* DEUDA */}
           <label>
             <span style={{ marginRight: 6 }}>Deuda (€)</span>
             <input
@@ -188,6 +267,7 @@ export default function Pagos() {
 
           <span style={{ width: 16 }} />
 
+          {/* PAGO */}
           <label>
             <span style={{ marginRight: 6 }}>Pago (€)</span>
             <input
@@ -199,13 +279,30 @@ export default function Pagos() {
               onChange={e => setAmountPay(e.target.value)}
             />
           </label>
+
+          <label>
+            <span style={{ margin: '0 6px' }}>Quién paga</span>
+            <select value={payer} onChange={(e) => setPayer(e.target.value)}>
+              <option value="">(sin especificar)</option>
+              <option value="Madre">Madre</option>
+              <option value="Padre">Padre</option>
+              <option value="Alumna">Alumna</option>
+              <option value="Alumno">Alumno</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+
           <button onClick={onAddPayment}>Registrar pago</button>
         </div>
       </div>
 
-      {/* Totales */}
+      {/* Totales y botón Exportar CSV */}
       <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <h3 style={{ marginTop: 0 }}>Estado del mes</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 style={{ marginTop: 0 }}>Estado del mes</h3>
+          <button onClick={exportMonthCSV}>Exportar CSV</button>
+        </div>
+
         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
           <Metric label="Deuda del mes" value={eur(monthTotals.debt)} />
           <Metric label="Pagado en el mes" value={eur(monthTotals.paid)} />
@@ -235,19 +332,22 @@ export default function Pagos() {
                   <th style={{ textAlign: 'left' }}>Fecha</th>
                   <th style={{ textAlign: 'left' }}>Tipo</th>
                   <th style={{ textAlign: 'right' }}>Importe</th>
-                  <th style={{ textAlign: 'left' }}>Nota</th>
+                  <th style={{ textAlign: 'left' }}>Nota / Paga</th>
                   <th style={{ textAlign: 'left' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map(r => (
                   <tr key={r.id}>
-                    <td>{format(new Date(r.date), "dd/MM/yyyy HH:mm")}</td>
+                    <td>{format(new Date(r.date), 'dd/MM/yyyy HH:mm')}</td>
                     <td style={{ textTransform: 'capitalize' }}>
                       {r.type === 'debt' ? 'Deuda' : 'Pago'}
                     </td>
                     <td style={{ textAlign: 'right' }}>{eur(r.amount)}</td>
-                    <td>{r.note}</td>
+                    <td>
+                      {r.note}
+                      {r.payer ? ` — (${r.payer})` : ''}
+                    </td>
                     <td>
                       <button onClick={() => onEdit(r)}>Editar</button>{' '}
                       <button onClick={() => onDelete(r)}>Eliminar</button>
