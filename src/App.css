@@ -1,453 +1,286 @@
 /* =========================
-   Variables y base visual
+   Agenda Sandra — app.css
+   Limpio y listo para móvil
    ========================= */
+
+/* ===== Variables y tema ===== */
 :root{
+  /* Base */
   --bg-1:#f9f7ff;         /* lila muy claro */
   --bg-2:#fffdfd;         /* casi blanco cálido */
-  --card:#ffffff;         /* tarjetas */
+  --card:#ffffff;         /* tarjetas/paneles */
   --text:#1f2937;         /* gris oscuro legible */
-  --accent:#e879f9;       /* rosa-lila suave para detalles */
+  --muted:#6b7280;        /* texto secundario */
+
+  /* Acentos */
+  --accent:#e879f9;       /* rosa-lila suave */
   --accent-2:#a78bfa;     /* lila complemento */
-  --slot-sep:#ede9fe;     /* separadores de tramos */
-  --slot-zebra:#faf5ff;   /* franja alterna muy sutil */
+  --danger:#ef4444;       /* errores */
+  --success:#10b981;      /* ok */
+
+  /* Separadores */
+  --slot-sep:#ede9fe;
+  --slot-zebra:#faf5ff;
+
+  /* Sombra y radios */
   --shadow:0 10px 25px rgba(0,0,0,.06);
   --radius:16px;
 
-  /* Paleta pastel para tramos (accesible y suave) */
-  --slot-c1: #fff1f5; /* rosa muy claro */
-  --slot-c2: #f2f7ff; /* azul claro */
-  --slot-c3: #f6fff1; /* verde claro */
-  --slot-c4: #fffaf1; /* naranja crema */
-  --slot-c5: #f6f1ff; /* lila claro */
-  --slot-c6: #f1fffb; /* turquesa muy claro */
-
-  --slot-border-1: #ffd7e4;
-  --slot-border-2: #cfe1ff;
-  --slot-border-3: #d8f7c4;
-  --slot-border-4: #ffe2bf;
-  --slot-border-5: #d9ccff;
-  --slot-border-6: #bff3e6;
+  /* Layout agenda: 2 columnas (tabla + lateral) en escritorio */
+  --agenda-cols: 1fr 320px;
 }
 
-/* Fondo general amable */
+/* ===== Reset suave / base tipográfica ===== */
+*{ box-sizing: border-box; }
+html, body, #root{ height: 100%; }
+
+/* Añadimos la propiedad estándar junto a la prefijada (iOS) */
+html{
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body{
-  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Inter, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
   color: var(--text);
-  margin: 0;
+  background: var(--bg-1);
+  line-height: 1.4;
 }
 
-/* Contenedor raíz (Vite) */
-#root {
-  max-width: 1280px;
+/* Contenedor principal opcional (si usas #root centrado) */
+#root{
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: clamp(12px, 2vw, 24px);
 }
 
-/* Contenedor principal extra (opcional) */
-.main-container{
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
+/* ===== Tipos y utilidades ===== */
+h1,h2,h3,h4{ margin: 0 0 .5rem; line-height: 1.2; }
+p{ margin: 0 0 .75rem; color: var(--text); }
+small, .muted{ color: var(--muted); }
+
+.hidden{ display:none!important; }
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
 }
 
-/* Tarjetas (resumen del día, etc.) */
+/* ===== Tarjetas/Panales ===== */
 .card{
   background: var(--card);
+  border: 1px solid #eee;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border: 1px solid #f3f0ff;
-  padding: 2em; /* mantiene tu padding anterior */
+  padding: clamp(12px, 2vw, 20px);
 }
 
-/* Cabeceras de sección con degradado en el texto */
-.section-title{
-  font-weight: 800;
-  font-size: 1.8rem;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* =========================
-   Logo demo Vite/React
-   ========================= */
-.logo { height: 6em; padding: 1.5em; will-change: filter; transition: filter 300ms; }
-.logo:hover { filter: drop-shadow(0 0 2em #646cffaa); }
-.logo.react:hover { filter: drop-shadow(0 0 2em #61dafbaa); }
-
-@keyframes logo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo { animation: logo-spin infinite 20s linear; }
-}
-
-.read-the-docs { color: #888; }
-
-/* =========================
-   AGENDA — Tramos horarios
-   ========================= */
-
-/* Contenedor de lista de tramos */
-.slots { display: grid; gap: 10px; }
-
-/* Fila de tramo de agenda */
-.slot-row{
-  display: grid;
-  grid-template-columns: 120px 1fr 1fr 1fr auto; /* hora | alumno | inicio | fin | botón */
-  gap: 12px;
-  padding: 14px 16px;
-  align-items: center;
-  border: 1px solid var(--slot-sep);
+/* ===== Botones ===== */
+button, .btn{
+  appearance: none;           /* estándar */
+  -webkit-appearance: none;   /* prefijo WebKit */
+  -moz-appearance: none;      /* prefijo Firefox */
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: var(--text);
   border-radius: 12px;
-  background: #fff;
-  transition: transform .08s ease, box-shadow .08s ease, background .2s, border-color .2s;
-  position: relative;
-  overflow: hidden;
-  /* variable local para la franja lateral */
-  --slot-accent: var(--slot-sep);
-}
-
-/* Zebra (se verá solo si no coincide con la paleta pastel de abajo) */
-.slot-row:nth-child(odd){ background: var(--slot-zebra); }
-.slot-row + .slot-row{ margin-top: 0; } /* ya hay gap en .slots */
-
-/* Hover (en PC) */
-.slot-row:hover{
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0,0,0,.06);
-}
-
-/* Columna de la hora más “fuerte” */
-.slot-hour{
-  font-weight: 800;
-  font-size: 1.1rem;
-  text-align: left;
-}
-
-/* Etiqueta pequeña bajo la hora (Disponible/Reservado) */
-.slot-status{ font-size: .9rem; opacity: .8; }
-
-/* Botón Añadir */
-.btn-add{
-  border-radius: 10px;
-  padding: 10px 14px;
-  border: 1px solid #eee;
-  background: #fff;
+  padding: 8px 12px;
+  font-size: 16px;               /* >=16px para evitar auto-zoom en iOS */
+  line-height: 1;
   cursor: pointer;
+  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
 }
-.btn-add:active{ transform: translateY(1px); }
+button:hover, .btn:hover{ background:#f9fafb; }
+button:active, .btn:active{ transform: translateY(1px); }
+button:disabled, .btn:disabled{ opacity:.6; cursor:not-allowed; }
 
-/* ====== Color por tramo (cíclico cada 6) ====== */
-.slots > .slot-row:nth-child(6n + 1){
-  background: linear-gradient(180deg, var(--slot-c1), #ffffff);
-  border-color: var(--slot-border-1);
-  box-shadow: 0 6px 14px rgba(255, 105, 180, .08);
-  --slot-accent: var(--slot-border-1);
+/* Botón primario rosa */
+.btn-primary{
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+  color: #fff;
+  border-color: #f59fbc;
+  box-shadow: 0 6px 20px rgba(236,72,153,.35);
 }
-.slots > .slot-row:nth-child(6n + 2){
-  background: linear-gradient(180deg, var(--slot-c2), #ffffff);
-  border-color: var(--slot-border-2);
-  box-shadow: 0 6px 14px rgba(100, 149, 237, .08);
-  --slot-accent: var(--slot-border-2);
-}
-.slots > .slot-row:nth-child(6n + 3){
-  background: linear-gradient(180deg, var(--slot-c3), #ffffff);
-  border-color: var(--slot-border-3);
-  box-shadow: 0 6px 14px rgba(46, 204, 113, .08);
-  --slot-accent: var(--slot-border-3);
-}
-.slots > .slot-row:nth-child(6n + 4){
-  background: linear-gradient(180deg, var(--slot-c4), #ffffff);
-  border-color: var(--slot-border-4);
-  box-shadow: 0 6px 14px rgba(255, 159, 67, .08);
-  --slot-accent: var(--slot-border-4);
-}
-.slots > .slot-row:nth-child(6n + 5){
-  background: linear-gradient(180deg, var(--slot-c5), #ffffff);
-  border-color: var(--slot-border-5);
-  box-shadow: 0 6px 14px rgba(155, 89, 182, .08);
-  --slot-accent: var(--slot-border-5);
-}
-.slots > .slot-row:nth-child(6n){
-  background: linear-gradient(180deg, var(--slot-c6), #ffffff);
-  border-color: var(--slot-border-6);
-  box-shadow: 0 6px 14px rgba(26, 188, 156, .08);
-  --slot-accent: var(--slot-border-6);
-}
+.btn-primary:hover{ filter: brightness(1.02); }
+.btn-danger{ background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+.btn-success{ background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
 
-/* Franja lateral sutil del color del tramo */
-.slots > .slot-row::before{
-  content: "";
-  position: absolute;
-  right: 0; top: 0; bottom: 0;
-  width: 6px;
-  background: var(--slot-accent);
-  opacity: .25;
-  border-top-right-radius: 12px;
-  border-bottom-right-radius: 12px;
-}
+/* Grupo de botones usado en cabeceras */
+.buttons{ display:flex; gap:8px; flex-wrap:wrap; }
+.buttons > *{ white-space: nowrap; }
 
-/* Ajuste de contraste de la hora para que destaque siempre */
-.slot-hour{ color: #0f172a; }
-
-/* =========================
-   ALUMNOS (UI Pro)
-   ========================= */
-.al-card { max-width: 1100px; margin: 18px auto; }
-.al-head { display: grid; gap: 12px; }
-.al-title { margin: 0 0 6px 0; font-size: 1.6rem; }
-.al-stats { display: flex; gap: 8px; flex-wrap: wrap; }
-.al-stat { background: #f5f6fa; border: 1px solid #ececf5; padding: 6px 10px; border-radius: 999px; font-size: .9rem; }
-
-.al-actions { display: grid; gap: 10px; grid-template-columns: 1fr auto; align-items: center; }
-.al-search {
-  height: 40px; padding: 0 12px; border-radius: 10px;
-  border: 1px solid #e1e2ea; background: #fcfcff; width: 100%;
-}
-.al-filters { display: flex; gap: 8px; flex-wrap: wrap; }
-.chip {
-  background: #f5f6fa; border: 1px solid #e1e2ea; border-radius: 999px;
-  padding: 6px 12px; font-weight: 600; cursor: pointer;
-}
-.chip-active { background: #ffe7f1; border-color: #ffc7da; }
-
-/* Lista en una sola columna (franja larga) */
-.al-list {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-@media (min-width: 980px) { .al-list { grid-template-columns: 1fr; } }
-
-/* Tarjeta de alumno */
-.student-card {
+/* ===== Inputs / Selects ===== */
+input, select, textarea{
+  border:1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 16px;              /* evita zoom iOS */
+  outline: none;
   background: #fff;
-  border: 1px solid #eef0f6;
-  border-radius: 14px;
-  box-shadow: 0 8px 22px rgba(0,0,0,0.06);
-  padding: 12px;
-}
-.al-item {
-  display: grid;
-  grid-template-columns: 1fr auto;  /* info + acciones */
-  align-items: center;
-  gap: 8px;
-  border-top: none;
-}
-.al-left { display: flex; gap: 12px; align-items: center; }
-.al-dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; }
-.al-name { font-weight: 700; display: flex; gap: 8px; align-items: center; }
-.al-sub { color: #6b7280; font-size: .92rem; }
-.al-actions-row { display: flex; gap: 8px; }
-
-/* Badges */
-.badge { font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: .78rem; border: 1px solid transparent; }
-.badge-green { background: #e8fff6; color: #0f7a48; border-color: #b7f3d4; }
-.badge-gray { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
-.badge-balance { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
-
-/* Botones genéricos */
-.btn { height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #e1e2ea; background: #fff; font-weight: 700; cursor: pointer; }
-.btn-primary { background: linear-gradient(90deg, #ff6aa2, #ff8bc2); color: #111; }
-.btn-ghost { background: #fff; }
-.btn-danger { background: #ffe5ea; border-color: #ffc1cd; color: #b3002c; }
-.btn:disabled { opacity: .6; cursor: not-allowed; }
-.btn-ghost:hover { filter: brightness(1.02); }
-
-/* Mensaje lista vacía */
-.al-empty { padding: 24px 0; color: #6b7280; text-align: center; }
-
-/* Modal */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: grid; place-items: center; padding: 16px; z-index: 50; }
-.modal-content {
-  width: 100%; max-width: 720px; background: #fff; color: #111; border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,.22); padding: 16px;
-}
-.modal-title { margin: 0 0 6px 0; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.field { display: grid; gap: 6px; }
-.field-row { display: flex; align-items: center; gap: 8px; }
-.field-full { grid-column: 1 / -1; }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
-@media (max-width: 720px) {
-  .al-actions { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
+  color: var(--text);
 }
 
-/* Tarjeta del alumno coloreada por estado */
-.alumno-card {
-  border-radius: 12px;
-  border-left: 8px solid transparent;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-.alumno-card.ok {
-  border-left-color: #16a34a;           /* verde */
-  background: rgba(22, 163, 74, 0.06);
-}
-.alumno-card.deuda {
-  border-left-color: #dc2626;           /* rojo */
-  background: rgba(220, 38, 38, 0.06);
+/* Enfocado */
+input:focus, select:focus, textarea:focus{
+  border-color: #d946ef;
+  box-shadow: 0 0 0 3px rgba(217,70,239,.15);
 }
 
-/* Puntito de estado (izquierda) */
-.estado-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  margin-right: .5rem;
+/* Quitar flechas en inputs number */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
 }
-.estado-dot.ok { background: #16a34a; }
-.estado-dot.deuda { background: #dc2626; }
+/* Añadimos también la propiedad estándar para evitar el aviso del linter */
+input[type="number"]{
+  appearance: none;          /* estándar: elimina “spinners” en navegadores modernos */
+  -moz-appearance: textfield;/* Firefox: mantiene estilo de campo de texto */
+}
 
-/* Etiqueta mini del estado (opcional) */
-.badge-estado { font-size: .75rem; padding: .15rem .5rem; border-radius: 999px; }
-.alumno-card.ok .badge-estado { background: #dcfce7; color: #166534; }
-.alumno-card.deuda .badge-estado { background: #fee2e2; color: #991b1b; }
-/* =========================
-   DIFERENCIAR TRAMOS (auto)
-   Aplica a TODOS los hijos directos de .slots
-   ========================= */
-
-/* Estilo base de cada tramo */
-.slots > *{
-  display: grid;
-  grid-template-columns: 120px 1fr 1fr 1fr auto; /* hora | alumno | inicio | fin | botón */
-  gap: 12px;
-  padding: 14px 16px;
-  align-items: center;
-  border: 1px solid var(--slot-sep);
-  border-radius: 12px;
+/* ===== Tablas (día) ===== */
+table{ width:100%; border-collapse: separate; border-spacing: 0 8px; }
+th, td{ text-align:left; vertical-align: top; }
+thead th{
+  font-weight:700;
+  color:#475569;
+  font-size:14px;
+  padding: 12px 16px;
+}
+tbody td{
   background: #fff;
-  transition: transform .08s ease, box-shadow .08s ease, background .2s, border-color .2s;
-  position: relative;
-  overflow: hidden;
-  --slot-accent: var(--slot-sep);
+  border: 1px solid #eee;
+  padding: 12px 14px;
+  border-radius: 12px;
 }
 
-/* Zebra básica (por si alguna fila no entra en el ciclo) */
-.slots > *:nth-child(odd){ background: var(--slot-zebra); }
-
-/* Hover (en PC) */
-.slots > *:hover{
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+/* Píldoras de eventos dentro de las celdas */
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 12px;
+  border-radius:12px;
+  color:#fff;
+  font-weight:600;
+  font-size:13px;
 }
 
-/* Franja lateral del color del tramo */
-.slots > *::before{
-  content: "";
-  position: absolute;
-  right: 0; top: 0; bottom: 0;
-  width: 6px;
-  background: var(--slot-accent);
-  opacity: .25;
-  border-top-right-radius: 12px;
-  border-bottom-right-radius: 12px;
+/* ===== Mes (calendario) ===== */
+.calendar-grid{
+  display:grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap:6px;
+}
+.calendar-day{
+  text-align:left;
+  padding:10px;
+  border-radius:12px;
+  border:1px solid #e2e8f0;
+  background:#fff;
+  transition: background .15s ease, border-color .15s ease;
+}
+.calendar-day.is-selected{
+  background:#fdf2f8;
+  border-color:#ec4899;
+}
+.calendar-day.is-holiday{
+  background:#fee2e2;
+  border-color:#f87171;
+}
+.calendar-day.is-inactive{ opacity:.6; }
+
+/* Badges pequeños dentro de cada día */
+.badge{
+  display:inline-block;
+  border-radius:12px;
+  padding:2px 6px;
+  font-size:10px;
+  font-weight:700;
+  color:#fff;
+}
+.badge-pink{ background:#ec4899; }
+.badge-purple{ background:#7c3aed; }
+
+/* ===== Aside resumen ===== */
+.aside{
+  background:#fafbfc;
+  border:1px solid #e2e8f0;
+  border-radius:16px;
+  padding:18px;
 }
 
-/* Ciclo de colores pastel (cada 6 tramos) */
-.slots > *:nth-child(6n + 1){
-  background: linear-gradient(180deg, var(--slot-c1), #ffffff);
-  border-color: var(--slot-border-1);
-  box-shadow: 0 6px 14px rgba(255, 105, 180, .08);
-  --slot-accent: var(--slot-border-1);
+/* ===== Modal + bloqueo de scroll ===== */
+.body-lock{
+  overflow: hidden;          /* sin scroll de fondo */
+  touch-action: none;        /* evita bounce en iOS */
 }
-.slots > *:nth-child(6n + 2){
-  background: linear-gradient(180deg, var(--slot-c2), #ffffff);
-  border-color: var(--slot-border-2);
-  box-shadow: 0 6px 14px rgba(100, 149, 237, .08);
-  --slot-accent: var(--slot-border-2);
+.modal-backdrop{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.25);
+  /* Soporte Safari/iOS */
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
-.slots > *:nth-child(6n + 3){
-  background: linear-gradient(180deg, var(--slot-c3), #ffffff);
-  border-color: var(--slot-border-3);
-  box-shadow: 0 6px 14px rgba(46, 204, 113, .08);
-  --slot-accent: var(--slot-border-3);
-}
-.slots > *:nth-child(6n + 4){
-  background: linear-gradient(180deg, var(--slot-c4), #ffffff);
-  border-color: var(--slot-border-4);
-  box-shadow: 0 6px 14px rgba(255, 159, 67, .08);
-  --slot-accent: var(--slot-border-4);
-}
-.slots > *:nth-child(6n + 5){
-  background: linear-gradient(180deg, var(--slot-c5), #ffffff);
-  border-color: var(--slot-border-5);
-  box-shadow: 0 6px 14px rgba(155, 89, 182, .08);
-  --slot-accent: var(--slot-border-5);
-}
-.slots > *:nth-child(6n){
-  background: linear-gradient(180deg, var(--slot-c6), #ffffff);
-  border-color: var(--slot-border-6);
-  box-shadow: 0 6px 14px rgba(26, 188, 156, .08);
-  --slot-accent: var(--slot-border-6);
+.modal{
+  position: fixed; left:50%; top:50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 16px;
+  width: min(640px, 92vw);
+  max-height: 80dvh;
+  overflow:auto;
+  padding: 16px;
+  box-shadow: 0 25px 50px rgba(0,0,0,.25);
 }
 
-/* Asegura buena legibilidad de la hora si tu HTML tiene esa columna */
-.slots > * .slot-hour{ color: #0f172a; font-weight: 800; font-size: 1.1rem; text-align: left; }
+/* ===== Scrollbar (suave) — soportado en navegadores modernos ===== */
+*{ scrollbar-width: thin; scrollbar-color: #e9d5ff transparent; }
+*::-webkit-scrollbar{ height:10px; width:10px; }
+*::-webkit-scrollbar-thumb{ background:#e9d5ff; border-radius:999px; }
+*::-webkit-scrollbar-track{ background:transparent; }
 
-/* ============ iPhone 14 Pro Max (≤430px) ============ */
-@media (max-width: 430px){
-  /* usa toda la pantalla respetando notch */
-  body{
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* 1 sola columna: tabla arriba, panel a la siguiente fila */
+/* ===== Responsivo ===== */
+@media (max-width: 900px){
+  /* La tabla del día ocupa todo; el aside pasa abajo */
   :root{ --agenda-cols: 1fr; }
-
-  /* compactar paddings globales */
-  #root{ padding: 12px; }
-  .card{ padding: 16px; }
-
-  /* filas de tramos: más compactas y legibles */
-  .slots{ gap: 8px; }
-  .slots > *{
-    grid-template-columns: 92px 1fr; /* hora | todo lo demás apilado */
-    gap: 8px;
-    padding: 12px;
-    min-height: auto;
-  }
-  .slots > * .slot-hour{ font-size: 1rem; }
-  .slots > * select,
-  .slots > * input,
-  .slots > * button{
-    width: 100%;
-    height: 40px;
-  }
-
-  /* Tabla del día como “tarjetas”: quitamos cabecera y apilamos celdas */
-  table[aria-label="Agenda del día"] thead{ display: none; }
-  table[aria-label="Agenda del día"] tbody tr{ display: block; margin-bottom: 12px; }
-  table[aria-label="Agenda del día"] tbody td{ display: block; }
-
-  /* Panel derecho: respirando y con textos más grandes */
-  aside[aria-label="Horas ocupadas"]{
-    padding: 16px;
-    border-radius: 12px;
-  }
-  aside[aria-label="Horas ocupadas"] h4{
-    font-size: 18px;
-  }
-  aside[aria-label="Horas ocupadas"] .metric{
-    font-size: 22px;
-    font-weight: 800;
-  }
-
-  /* Botones superiores (Hoy/Anterior/Siguiente) apilados si no caben */
-  [aria-labelledby="tabla-dia"] .buttons,
-  [aria-labelledby="tabla-mes"] .buttons{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
 }
 
+/* Afinado extra para móviles pequeños */
+@media (max-width: 480px){
+  .buttons{ gap:6px; }
+  button, .btn{ padding: 9px 10px; font-size: 16px; }
+  input, select{ width: 100%; }
+  thead th{ font-size:13px; padding:10px 12px; }
+  tbody td{ padding:10px 12px; }
+}
+
+/* ===== Modo impresión (útil para facturas/listados) ===== */
+@media print{
+  :root{ --shadow:none; }
+  *{ box-shadow:none!important; text-shadow:none!important; }
+  .no-print{ display:none!important; }
+  body{ background:#fff; }
+  a::after{ content:" (" attr(href) ")"; font-size:10px; color:#555; }
+}
+/* ===== FIX: Modal siempre por encima y con scroll cómodo en móvil ===== */
+.modal-backdrop{
+  z-index: 9998;                /* por encima de la cabecera */
+}
+
+.modal{
+  z-index: 9999;                /* por encima del backdrop y de la cabecera */
+  /* En móviles, mejor que “flote” con margen en vez de centrado absoluto */
+  left: 0; top: 0;
+  transform: none;
+  margin: 16px;
+  width: auto;
+  max-height: calc(100dvh - 32px);  /* ocupa casi toda la altura visible */
+  overflow: auto;                    /* scroll dentro del modal */
+  overscroll-behavior: contain;      /* evita que se mueva el fondo */
+  -webkit-overflow-scrolling: touch; /* deslizamiento suave en iOS */
+}
+
+/* Un pelín más compacto en pantallas pequeñas */
+@media (max-width: 600px){
+  .modal{ margin: 12px; max-height: calc(100dvh - 24px); }
+}
