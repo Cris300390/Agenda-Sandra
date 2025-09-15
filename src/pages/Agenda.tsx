@@ -52,7 +52,7 @@ export default function Agenda() {
   return (
     <div style={{
       background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 30%, #fbcfe8 70%, #f9a8d4 100%)',
-      minHeight: '100vh',
+      minHeight: '100dvh',
       padding: '24px',
       fontFamily: '\'Inter\', \'Segoe UI\', system-ui, sans-serif'
     }}>
@@ -63,34 +63,22 @@ export default function Agenda() {
         borderRadius: '24px',
         boxShadow: '0 25px 50px rgba(244, 114, 182, 0.25), 0 0 0 1px rgba(255, 182, 193, 0.3)',
         backdropFilter: 'blur(20px)',
-        overflow: 'hidden'
+        overflow: 'visible' // ✅ importante: no recortar el modal
       }}>
         {/* Cabecera */}
         <div style={{
           background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 30%, #be185d 70%, #db2777 100%)',
-          padding: '32px 40px',
+          padding: 'clamp(16px, 4vw, 32px) clamp(20px, 5vw, 40px)',
           borderRadius: '24px 24px 0 0',
           position: 'relative',
           overflow: 'hidden'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h1 style={{ margin: 0, color: 'white', fontSize: 48, fontWeight: 800 }}>Agenda Sandra</h1>
-            <a href="/alumnos/nuevo" style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              padding: '12px 24px',
-              borderRadius: 12,
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: 600,
-              border: '1px solid rgba(255, 182, 193, 0.4)'
-            }}>
-              🌸 Nuevo Alumno
-            </a>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0, color: 'white', fontSize: 'clamp(28px, 6vw, 48px)', fontWeight: 800 }}>Agenda Sandra</h1>
           </div>
         </div>
 
-        <div style={{ padding: 40 }}>
+        <div style={{ padding: 'var(--m-wrap-pad)' }}>
           <MonthTable
             date={currentDate}
             events={events}
@@ -101,16 +89,16 @@ export default function Agenda() {
           />
 
           {/* Día */}
-          <section aria-labelledby="tabla-dia" style={{ marginTop: 32 }}>
+          <section aria-labelledby="tabla-dia" style={{ marginTop: 24 }}>
             <div style={{
               background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)',
-              padding: '24px 32px',
+              padding: '16px 20px',
               borderRadius: '20px 20px 0 0',
               border: '1px solid #f3e8ff'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <h3 id="tabla-dia" style={{ margin: 0, color: '#be185d', fontSize: 24, fontWeight: 700 }}>Agenda del Día</h3>
-                <div className="buttons" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <h3 id="tabla-dia" style={{ margin: 0, color: '#be185d', fontSize: 22, fontWeight: 700 }}>Agenda del Día</h3>
+                <div className="buttons" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <button onClick={() => setCurrentDate(new Date())}>🏠 Hoy</button>
                   <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 1))}>← Anterior</button>
                   <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1))}>Siguiente →</button>
@@ -189,7 +177,6 @@ function DayTable(props: DayTableProps) {
       .sort((a, b) => (a.start as Date).getTime() - (b.start as Date).getTime())
   }, [date, events])
 
-  // Slots de 16:00 a 21:00
   const timeSlots = useMemo(() => {
     const slots: string[] = []
     for (let h = 16; h <= 21; h++) slots.push(`${String(h).padStart(2, '0')}:00`)
@@ -209,14 +196,13 @@ function DayTable(props: DayTableProps) {
 
   return (
     <div style={{ background: 'white', borderRadius: '0 0 20px 20px', border: '1px solid #f3e8ff', borderTop: 'none' }}>
-      <div style={{ overflowX: 'auto', padding: 32 }}>
-        {/* 🔧 Responsive: usamos la variable --agenda-cols que definiste en App.css */}
+      <div style={{ overflowX: 'auto', padding: 24 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'var(--agenda-cols, 1fr 320px)', gap: 24 }}>
           <table role="table" aria-label="Agenda del día" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '16px 20px' }}>⏰ Horario</th>
-                <th style={{ textAlign: 'left', padding: '16px 20px' }}>👥 Estudiantes</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px' }}>⏰ Horario</th>
+                <th style={{ textAlign: 'left', padding: '12px 16px' }}>👥 Estudiantes</th>
               </tr>
             </thead>
             <tbody>
@@ -229,29 +215,20 @@ function DayTable(props: DayTableProps) {
                 const leftCellStyle: React.CSSProperties = {
                   padding: 0, verticalAlign: 'top',
                   background: `linear-gradient(180deg, ${bg1}, #ffffff)`,
-                  border: `1px solid ${border}`,
-                  borderRight: 'none',
-                  borderRadius: '12px 0 0 12px',
-                  boxShadow: `0 6px 14px ${shadow}`,
-                  position: 'relative',
-                  minWidth: 0
+                  border: `1px solid ${border}`, borderRight: 'none',
+                  borderRadius: '12px 0 0 12px', boxShadow: `0 6px 14px ${shadow}`, position: 'relative', minWidth: 0
                 }
-
                 const rightCellStyle: React.CSSProperties = {
                   padding: 0, verticalAlign: 'top',
                   background: `linear-gradient(180deg, ${bg1}, #ffffff)`,
-                  border: `1px solid ${border}`,
-                  borderLeft: 'none',
-                  borderRadius: '0 12px 12px 0',
-                  boxShadow: `0 6px 14px ${shadow}`,
-                  position: 'relative',
-                  minWidth: 0
+                  border: `1px solid ${border}`, borderLeft: 'none',
+                  borderRadius: '0 12px 12px 0', boxShadow: `0 6px 14px ${shadow}`, position: 'relative', minWidth: 0
                 }
 
                 return (
                   <tr key={slot}>
                     <td style={leftCellStyle}>
-                      <div style={{ padding: '20px 16px', minHeight: 120 }}>
+                      <div style={{ padding: '16px', minHeight: 110 }}>
                         <div style={{ fontSize: 18, fontWeight: 800 }}>{slot}</div>
                         <div style={{ fontSize: 18, fontWeight: 800 }}>
                           {String(parseInt(slot.split(':')[0]) + 1).padStart(2, '0')}:00
@@ -262,21 +239,20 @@ function DayTable(props: DayTableProps) {
                     </td>
 
                     <td style={rightCellStyle}>
-                      {/* franja acento derecha */}
                       <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 6, background: border, opacity: .25, borderRadius: '0 12px 12px 0' }} />
                       {eventsInSlot.length > 0 ? (
-                        <div style={{ padding: '20px 24px', minHeight: 120 }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                        <div style={{ padding: '16px 20px', minHeight: 110 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
                             {eventsInSlot.map(ev => <EditablePill key={`${slot}-${ev.id}`} event={ev} onUpdate={onUpdateEvent} />)}
                           </div>
                           {!isAtCapacity && (
-                            <div style={{ paddingTop: 16, borderTop: '1px solid #eee', marginTop: 12 }}>
+                            <div style={{ paddingTop: 12, borderTop: '1px solid #eee', marginTop: 8 }}>
                               <InlineAdd slot={slot} onCreate={onCreateAtSlot} disabled={false} max={MAX_PER_SLOT} compact />
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div style={{ padding: '20px 24px', minHeight: 120 }}>
+                        <div style={{ padding: '16px 20px', minHeight: 110 }}>
                           <InlineAdd slot={slot} onCreate={onCreateAtSlot} disabled={false} max={MAX_PER_SLOT} />
                         </div>
                       )}
@@ -362,28 +338,27 @@ function InlineAdd({
   )
 }
 
-/* ---------- Aside de resumen ---------- */
+/* ---------- Aside ---------- */
 function AsideResumen({ dayEvents, timeSlots, findEventsInSlot }:{
   dayEvents: CalendarEvent[], timeSlots: string[], findEventsInSlot: (slot: string)=>CalendarEvent[]
 }) {
   return (
-    <aside aria-label="Horas ocupadas" style={{ background: '#fafbfc', borderRadius: 16, padding: 24, border: '1px solid #e2e8f0' }}>
+    <aside aria-label="Horas ocupadas" style={{ background: '#fafbfc', borderRadius: 16, padding: 20, border: '1px solid #e2e8f0' }}>
       <h4 style={{ margin: 0, color: '#be185d', fontSize: 20, fontWeight: 700 }}>Resumen del Día</h4>
-      <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
-        <div style={{ padding: 20, background: '#ec4899', borderRadius: 16, color: 'white' }}>
+      <div style={{ display: 'grid', gap: 16, marginTop: 12 }}>
+        <div style={{ padding: 16, background: '#ec4899', borderRadius: 16, color: 'white' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>📚 Total Clases</span>
-            <span style={{ fontSize: 24, fontWeight: 800 }}>{dayEvents.length}</span>
+            <span style={{ fontSize: 22, fontWeight: 800 }}>{dayEvents.length}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            {/* Cambiado a “Alumnos” (únicos) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
             <span>👥 Alumnos</span>
-            <span style={{ fontSize: 24, fontWeight: 800 }}>{new Set(dayEvents.map(e => e.title)).size}</span>
+            <span style={{ fontSize: 22, fontWeight: 800 }}>{new Set(dayEvents.map(e => e.title)).size}</span>
           </div>
         </div>
 
-        <div style={{ padding: 20, background: '#7c3aed', borderRadius: 16, color: 'white' }}>
-          <div style={{ fontWeight: 700, marginBottom: 12 }}>🕰️ Ocupación por Franja</div>
+        <div style={{ padding: 16, background: '#7c3aed', borderRadius: 16, color: 'white' }}>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>🕰️ Ocupación por Franja</div>
           <div style={{ display: 'grid', gap: 4 }}>
             {timeSlots.map(slot => {
               const slotEvents = findEventsInSlot(slot)
@@ -403,8 +378,7 @@ function AsideResumen({ dayEvents, timeSlots, findEventsInSlot }:{
   )
 }
 
-/* ===================== UTILS / PILLA ===================== */
-
+/* ===================== UTILS ===================== */
 function adjustColorBrightness(hex: string, percent: number): string {
   const num = parseInt(hex.replace('#', ''), 16)
   const amt = Math.round(2.55 * percent)
@@ -518,21 +492,21 @@ function MonthTable({
   function uniqueStudentsCount(day: Date) { return new Set(events.filter(e => isSameDay(e.start, day)).map(e => e.title)).size }
 
   return (
-    <section aria-labelledby="tabla-mes" style={{ marginBottom: 32, borderRadius: 20, padding: 32, border: '1px solid #e5e7eb' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h3 id="tabla-mes" style={{ margin: 0, color: '#1e293b', fontSize: 28, fontWeight: 700 }}>
+    <section aria-labelledby="tabla-mes" style={{ marginBottom: 24, borderRadius: 20, padding: 'var(--m-wrap-pad)', border: '1px solid #e5e7eb' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 }}>
+        <h3 id="tabla-mes" style={{ margin: 0, color: '#1e293b', fontSize: 'var(--m-title)', fontWeight: 700 }}>
           {format(date, 'LLLL yyyy', { locale: es })}
         </h3>
-        <div className="buttons" style={{ display: 'flex', gap: 8 }}>
+        <div className="buttons" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={onToday}>🏠 Hoy</button>
           <button onClick={onPrevMonth}>← Anterior</button>
           <button onClick={onNextMonth}>Siguiente →</button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 'var(--m-gap)' }}>
         {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(h => (
-          <div key={h} style={{ fontWeight: 700, padding: '12px 8px', textAlign: 'center' }}>{h}</div>
+          <div key={h} style={{ fontWeight: 700, padding: '8px 4px', textAlign: 'center', fontSize: 'var(--m-weekday)' }}>{h}</div>
         ))}
         {days.map((day) => {
           const inactive = !isSameMonth(day, date)
@@ -545,7 +519,9 @@ function MonthTable({
               key={day.toISOString()}
               onClick={() => onPickDay(day)}
               style={{
-                textAlign: 'left', padding: 12, borderRadius: 12,
+                textAlign: 'left',
+                padding: 'var(--m-cell-pad)',
+                borderRadius: 12,
                 border: holiday ? '2px solid #f87171' : selected ? '2px solid #ec4899' : '1px solid #e2e8f0',
                 background: selected ? '#fdf2f8' : holiday ? '#fee2e2' : 'white',
                 opacity: inactive ? 0.6 : 1
