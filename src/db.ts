@@ -26,7 +26,7 @@ export type ClassSession = {
   studentId: number
   title: string
   start: string // ISO
-  end: string // ISO
+  end: string   // ISO
   canceled?: boolean
   noShow?: boolean
 }
@@ -37,13 +37,9 @@ export type Payment = {
   studentId: number
   date: string // ISO
   amount: number
-  /** método opcional */
   method?: 'cash' | 'card' | 'transfer'
-  /** nota libre */
   note?: string
-  /** para consultas por mes (opcional) */
   monthKey?: string // YYYY-MM
-  /** si quieres marcar “pagado”/“pendiente” (opcional) */
   paid?: boolean
   /** quién paga: Madre, Padre, Abuela, Abuelo, Alumna, Alumno, Otro… */
   payer?: string
@@ -58,6 +54,7 @@ export interface Movement {
   amount: number        // importe positivo
   date: string          // ISO: new Date().toISOString()
   note?: string
+  payer?: string        // NUEVO (opcional): quién paga
 }
 
 export class AgendaDB extends Dexie {
@@ -76,15 +73,14 @@ export class AgendaDB extends Dexie {
       payments: '++id, studentId, monthKey, paid'
     })
 
-    // v2: añadimos la tabla "movements" para llevar deudas y pagos en un solo libro
-    // Repetimos todas las tablas en stores() para dejar claro el esquema completo.
+    // v2: añadimos la tabla "movements" (libro de deudas y pagos)
     this.version(2).stores({
       students: '++id, name, active',
       classes: '++id, studentId, start, end, noShow',
       payments: '++id, studentId, monthKey, paid',
-      movements: '++id, studentId, date, type' // índices para búsquedas
+      movements: '++id, studentId, date, type'
     }).upgrade(async (tx) => {
-      // Migración suave: copia pagos antiguos a movements (type = 'payment')
+      // Migración suave: copia pagos antiguos a movements (type='payment')
       try {
         const pTable = tx.table('payments') as Table<Payment, number>
         const mTable = tx.table('movements') as Table<Movement, number>
@@ -95,7 +91,8 @@ export class AgendaDB extends Dexie {
             type: 'payment',
             amount: Math.max(0, Number(p.amount) || 0),
             date: p.date ?? new Date().toISOString(),
-            note: p.note
+            note: p.note,
+            payer: p.payer
           })
         }
       } catch {
@@ -152,7 +149,7 @@ export async function seedIfEmpty() {
     end: end.toISOString()
   })
 
-  // Ejemplo: pago inicial
+  // Ejemplo: pago inicial (tabla antigua)
   await db.payments.add({
     studentId,
     amount: 20,
@@ -164,13 +161,14 @@ export async function seedIfEmpty() {
     payer: 'Madre'
   })
 
-  // También lo reflejamos en movements como 'payment'
+  // Reflejo en movements
   await db.movements.add({
     studentId,
     type: 'payment',
     amount: 20,
     date: now.toISOString(),
-    note: 'Primera clase (migrado)'
+    note: 'Primera clase (migrado)',
+    payer: 'Madre'
   })
 }
 
@@ -199,14 +197,16 @@ export async function addPayment(
   studentId: number,
   amount: number,
   note = '',
-  when: Date = new Date()
+  when: Date = new Date(),
+  payer?: string          // NUEVO: quién paga (opcional)
 ) {
   return db.movements.add({
     studentId,
     type: 'payment',
     amount: toMoney(amount),
     date: when.toISOString(),
-    note
+    note,
+    payer
   })
 }
 
@@ -216,7 +216,7 @@ export async function listMovementsByStudent(studentId: number) {
   return rows.sort((a, b) => a.date.localeCompare(b.date))
 }
 
-/** Saldos de un alumno a partir de movements */
+/** Saldos de un alumno a partir de movements (globales) */
 export async function getStudentBalance(studentId: number) {
   const rows = await db.movements.where('studentId').equals(studentId).toArray()
   const debt = rows.filter(r => r.type === 'debt').reduce((s, r) => s + (r.amount || 0), 0)
