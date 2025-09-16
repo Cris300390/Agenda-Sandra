@@ -1,6 +1,6 @@
 /* =========================
-   Agenda Sandra — app.css
-   Limpio y listo para móvil
+   Agenda Sandra — app.css (completo)
+   Profesional, móvil first
    ========================= */
 
 /* ===== Variables y tema ===== */
@@ -12,29 +12,32 @@
   --text:#1f2937;         /* gris oscuro legible */
   --muted:#6b7280;        /* texto secundario */
 
-  /* Acentos */
-  --accent:#e879f9;       /* rosa-lila suave */
-  --accent-2:#a78bfa;     /* lila complemento */
-  --danger:#ef4444;       /* errores */
-  --success:#10b981;      /* ok */
+  /* Marca (degradado activo) */
+  --brand-1:#f472b6;      /* rosa vivo */
+  --brand-2:#ec4899;      /* magenta suave */
 
-  /* Separadores */
+  /* Colores pastel para “aura” de cada botón (no activo) */
+  --chip1:#f472b6; /* Agenda → rosa */
+  --chip2:#6366f1; /* Alumnos → índigo */
+  --chip3:#10b981; /* Pagos → esmeralda */
+  --chip4:#0ea5e9; /* Informes → celeste */
+
+  /* Otros */
+  --danger:#ef4444;
+  --success:#10b981;
   --slot-sep:#ede9fe;
   --slot-zebra:#faf5ff;
-
-  /* Sombra y radios */
   --shadow:0 10px 25px rgba(0,0,0,.06);
   --radius:16px;
 
-  /* Layout agenda: 2 columnas (tabla + lateral) en escritorio */
+  /* Layout agenda escritorio */
   --agenda-cols: 1fr 320px;
 }
 
-/* ===== Reset suave / base tipográfica ===== */
+/* ===== Reset / base tipográfica ===== */
 *{ box-sizing: border-box; }
 html, body, #root{ height: 100%; }
 
-/* Añadimos la propiedad estándar junto a la prefijada (iOS) */
 html{
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -48,21 +51,110 @@ body{
   line-height: 1.4;
 }
 
-/* Contenedor principal opcional (si usas #root centrado) */
 #root{
   max-width: 1400px;
   margin: 0 auto;
   padding: clamp(12px, 2vw, 24px);
 }
 
-/* ===== Tipos y utilidades ===== */
+/* ===== Utilidades ===== */
 h1,h2,h3,h4{ margin: 0 0 .5rem; line-height: 1.2; }
 p{ margin: 0 0 .75rem; color: var(--text); }
 small, .muted{ color: var(--muted); }
-
 .hidden{ display:none!important; }
-.sr-only{
-  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+.sr-only{ position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+/* ========================================
+   CABECERA + MENÚ (versión profesional)
+   ======================================== */
+.topbar{
+  position: sticky;
+  top: 0;
+  z-index: 10000;
+  border-radius: 18px;
+  padding: 16px 14px;
+  margin-bottom: 12px;
+
+  /* Fondo suave (no rosa) para no chocar con el banner */
+  background: linear-gradient(135deg, #f7f5ff 0%, #eef2ff 100%);
+  border: 1px solid #e9d5ff;
+  box-shadow: 0 12px 32px rgba(99,102,241,.10); /* sombra con tono índigo sutil */
+}
+
+.topbar.topbar--center{
+  display:flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo{
+  margin:0;
+  font-size: clamp(22px, 3.2vw, 30px);
+  letter-spacing: .2px;
+}
+
+/* Menú centrado */
+.nav{ display:flex; gap:.75rem; flex-wrap:wrap; }
+.nav.nav--center{ justify-content:center; }
+
+/* Botón base (inactivo): blanco con “aura” pastel por sección */
+.nav-item{
+  display:inline-flex;
+  align-items:center;
+  padding:.58rem 1.05rem;
+  border-radius:9999px;
+  text-decoration:none;
+  font-weight:600;
+  color: #111827;
+  background:#fff;
+  border:1px solid #ececf5;
+  box-shadow: 0 4px 14px rgba(0,0,0,.06);
+  transition: transform .06s ease, box-shadow .22s ease, filter .18s ease, background .18s ease;
+}
+
+/* Aros pastel por orden de pestaña (visibles pero elegantes) */
+.nav.nav--center .nav-item:nth-child(1):not(.nav-item--active){
+  box-shadow: 0 4px 14px rgba(0,0,0,.06),
+              0 0 0 6px color-mix(in srgb, var(--chip1) 12%, transparent);
+}
+.nav.nav--center .nav-item:nth-child(2):not(.nav-item--active){
+  box-shadow: 0 4px 14px rgba(0,0,0,.06),
+              0 0 0 6px color-mix(in srgb, var(--chip2) 12%, transparent);
+}
+.nav.nav--center .nav-item:nth-child(3):not(.nav-item--active){
+  box-shadow: 0 4px 14px rgba(0,0,0,.06),
+              0 0 0 6px color-mix(in srgb, var(--chip3) 12%, transparent);
+}
+.nav.nav--center .nav-item:nth-child(4):not(.nav-item--active){
+  box-shadow: 0 4px 14px rgba(0,0,0,.06),
+              0 0 0 6px color-mix(in srgb, var(--chip4) 12%, transparent);
+}
+
+/* Hover elegante en inactivos */
+.nav-item:hover:not(.nav-item--active){
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.10),
+              0 0 0 7px color-mix(in srgb, #94a3b8 14%, transparent);
+  filter: brightness(1.02);
+}
+
+/* Activo: degradado de marca con texto blanco */
+.nav-item--active{
+  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
+  color:#fff !important;
+  border-color: color-mix(in srgb, var(--brand-2) 40%, #ffffff 60%);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand-2) 35%, transparent);
+}
+
+/* El contenido nunca tapa la barra */
+.content{ position: relative; z-index: 0; padding-top: .5rem; }
+
+/* ===== Hero/banner interno opcional ===== */
+.hero, .agenda-hero, .agenda-title{ position:relative; z-index:0; margin-top:.5rem; }
+.hero-banner{
+  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
+  color:#fff; padding: 24px; border-radius: 18px; box-shadow: var(--shadow);
 }
 
 /* ===== Tarjetas/Panales ===== */
@@ -74,18 +166,11 @@ small, .muted{ color: var(--muted); }
   padding: clamp(12px, 2vw, 20px);
 }
 
-/* ===== Botones ===== */
+/* ===== Botones generales ===== */
 button, .btn{
-  appearance: none;           /* estándar */
-  -webkit-appearance: none;   /* prefijo WebKit */
-  -moz-appearance: none;      /* prefijo Firefox */
-  border: 1px solid #e5e7eb;
-  background: white;
-  color: var(--text);
-  border-radius: 12px;
-  padding: 8px 12px;
-  font-size: 16px;               /* >=16px para evitar auto-zoom en iOS */
-  line-height: 1;
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  border: 1px solid #e5e7eb; background: white; color: var(--text);
+  border-radius: 12px; padding: 8px 12px; font-size: 16px; line-height: 1;
   cursor: pointer;
   transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
 }
@@ -93,159 +178,83 @@ button:hover, .btn:hover{ background:#f9fafb; }
 button:active, .btn:active{ transform: translateY(1px); }
 button:disabled, .btn:disabled{ opacity:.6; cursor:not-allowed; }
 
-/* Botón primario rosa */
 .btn-primary{
-  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
-  color: #fff;
-  border-color: #f59fbc;
-  box-shadow: 0 6px 20px rgba(236,72,153,.35);
+  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
+  color: #fff; border-color: #f59fbc;
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--brand-2) 35%, transparent);
 }
 .btn-primary:hover{ filter: brightness(1.02); }
 .btn-danger{ background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
 .btn-success{ background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
-
-/* Grupo de botones usado en cabeceras */
 .buttons{ display:flex; gap:8px; flex-wrap:wrap; }
 .buttons > *{ white-space: nowrap; }
 
 /* ===== Inputs / Selects ===== */
 input, select, textarea{
-  border:1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 16px;              /* evita zoom iOS */
-  outline: none;
-  background: #fff;
-  color: var(--text);
+  border:1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px;
+  font-size: 16px; outline: none; background: #fff; color: var(--text);
 }
-
-/* Enfocado */
 input:focus, select:focus, textarea:focus{
-  border-color: #d946ef;
-  box-shadow: 0 0 0 3px rgba(217,70,239,.15);
+  border-color: #d946ef; box-shadow: 0 0 0 3px rgba(217,70,239,.15);
 }
-
-/* Quitar flechas en inputs number */
+/* Quitar flechas number */
 input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button{
-  -webkit-appearance: none;
-  margin: 0;
-}
-/* Añadimos también la propiedad estándar para evitar el aviso del linter */
-input[type="number"]{
-  appearance: none;          /* estándar: elimina “spinners” en navegadores modernos */
-  -moz-appearance: textfield;/* Firefox: mantiene estilo de campo de texto */
-}
+input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
+input[type="number"]{ appearance: none; -moz-appearance: textfield; }
 
 /* ===== Tablas (día) ===== */
 table{ width:100%; border-collapse: separate; border-spacing: 0 8px; }
 th, td{ text-align:left; vertical-align: top; }
-thead th{
-  font-weight:700;
-  color:#475569;
-  font-size:14px;
-  padding: 12px 16px;
-}
-tbody td{
-  background: #fff;
-  border: 1px solid #eee;
-  padding: 12px 14px;
-  border-radius: 12px;
-}
+thead th{ font-weight:700; color:#475569; font-size:14px; padding: 12px 16px; }
+tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-radius: 12px; }
 
-/* Píldoras de eventos dentro de las celdas */
+/* Píldoras de eventos */
 .pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:8px 12px;
-  border-radius:12px;
-  color:#fff;
-  font-weight:600;
-  font-size:13px;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 12px; border-radius:12px; color:#fff; font-weight:600; font-size:13px;
 }
 
-/* ===== Mes (calendario) ===== */
-.calendar-grid{
-  display:grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap:6px;
-}
+/* ===== Calendario mensual ===== */
+.calendar-grid{ display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:6px; }
 .calendar-day{
-  text-align:left;
-  padding:10px;
-  border-radius:12px;
-  border:1px solid #e2e8f0;
-  background:#fff;
-  transition: background .15s ease, border-color .15s ease;
+  text-align:left; padding:10px; border-radius:12px; border:1px solid #e2e8f0;
+  background:#fff; transition: background .15s ease, border-color .15s ease;
 }
-.calendar-day.is-selected{
-  background:#fdf2f8;
-  border-color:#ec4899;
-}
-.calendar-day.is-holiday{
-  background:#fee2e2;
-  border-color:#f87171;
-}
+.calendar-day.is-selected{ background:#fdf2f8; border-color:var(--brand-2); }
+.calendar-day.is-holiday{ background:#fee2e2; border-color:#f87171; }
 .calendar-day.is-inactive{ opacity:.6; }
 
-/* Badges pequeños dentro de cada día */
-.badge{
-  display:inline-block;
-  border-radius:12px;
-  padding:2px 6px;
-  font-size:10px;
-  font-weight:700;
-  color:#fff;
-}
-.badge-pink{ background:#ec4899; }
-.badge-purple{ background:#7c3aed; }
+/* Badges pequeños */
+.badge{ display:inline-block; border-radius:12px; padding:2px 6px; font-size:10px; font-weight:700; color:#fff; }
+.badge-pink{ background:var(--brand-2); } .badge-purple{ background:#7c3aed; }
 
 /* ===== Aside resumen ===== */
-.aside{
-  background:#fafbfc;
-  border:1px solid #e2e8f0;
-  border-radius:16px;
-  padding:18px;
-}
+.aside{ background:#fafbfc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; }
 
 /* ===== Modal + bloqueo de scroll ===== */
-.body-lock{
-  overflow: hidden;          /* sin scroll de fondo */
-  touch-action: none;        /* evita bounce en iOS */
-}
+.body-lock{ overflow: hidden; touch-action: none; }
 .modal-backdrop{
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.25);
-  /* Soporte Safari/iOS */
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  position: fixed; inset: 0; background: rgba(0,0,0,.25);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index: 9998;
 }
 .modal{
-  position: fixed; left:50%; top:50%;
-  transform: translate(-50%, -50%);
-  background: #fff;
-  border-radius: 16px;
-  width: min(640px, 92vw);
-  max-height: 80dvh;
-  overflow:auto;
-  padding: 16px;
-  box-shadow: 0 25px 50px rgba(0,0,0,.25);
+  background: #fff; border-radius: 16px; padding: 16px;
+  box-shadow: 0 25px 50px rgba(0,0,0,.25); z-index: 9999;
+
+  position: fixed; left: 0; top: 0; transform: none;
+  margin: 16px; width: auto; max-height: calc(100dvh - 32px);
+  overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 
-/* ===== Scrollbar (suave) — soportado en navegadores modernos ===== */
+/* ===== Scrollbar suave ===== */
 *{ scrollbar-width: thin; scrollbar-color: #e9d5ff transparent; }
 *::-webkit-scrollbar{ height:10px; width:10px; }
 *::-webkit-scrollbar-thumb{ background:#e9d5ff; border-radius:999px; }
 *::-webkit-scrollbar-track{ background:transparent; }
 
 /* ===== Responsivo ===== */
-@media (max-width: 900px){
-  /* La tabla del día ocupa todo; el aside pasa abajo */
-  :root{ --agenda-cols: 1fr; }
-}
-
-/* Afinado extra para móviles pequeños */
+@media (max-width: 900px){ :root{ --agenda-cols: 1fr; } }
+@media (max-width: 600px){ .modal{ margin: 12px; max-height: calc(100dvh - 24px); } }
 @media (max-width: 480px){
   .buttons{ gap:6px; }
   button, .btn{ padding: 9px 10px; font-size: 16px; }
@@ -254,33 +263,11 @@ tbody td{
   tbody td{ padding:10px 12px; }
 }
 
-/* ===== Modo impresión (útil para facturas/listados) ===== */
+/* ===== Modo impresión ===== */
 @media print{
   :root{ --shadow:none; }
   *{ box-shadow:none!important; text-shadow:none!important; }
   .no-print{ display:none!important; }
   body{ background:#fff; }
   a::after{ content:" (" attr(href) ")"; font-size:10px; color:#555; }
-}
-/* ===== FIX: Modal siempre por encima y con scroll cómodo en móvil ===== */
-.modal-backdrop{
-  z-index: 9998;                /* por encima de la cabecera */
-}
-
-.modal{
-  z-index: 9999;                /* por encima del backdrop y de la cabecera */
-  /* En móviles, mejor que “flote” con margen en vez de centrado absoluto */
-  left: 0; top: 0;
-  transform: none;
-  margin: 16px;
-  width: auto;
-  max-height: calc(100dvh - 32px);  /* ocupa casi toda la altura visible */
-  overflow: auto;                    /* scroll dentro del modal */
-  overscroll-behavior: contain;      /* evita que se mueva el fondo */
-  -webkit-overflow-scrolling: touch; /* deslizamiento suave en iOS */
-}
-
-/* Un pelín más compacto en pantallas pequeñas */
-@media (max-width: 600px){
-  .modal{ margin: 12px; max-height: calc(100dvh - 24px); }
 }

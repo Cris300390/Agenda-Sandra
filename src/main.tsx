@@ -1,29 +1,17 @@
-// src/main.tsx — HashRouter sin seed
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { createHashRouter, RouterProvider } from 'react-router-dom'
-import './index.css'
+// src/main.tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
 import App from './App'
-import Agenda from './pages/Agenda'
-import Alumnos from './pages/Alumnos'
-import Pagos from './pages/Pagos'
-import Informes from './pages/Informes'
+import { ToastProvider } from './ui/Toast'
 
-const router = createHashRouter([
-  {
-    path: '/',
-    element: <App />,
-    children: [
-      { index: true, element: <Agenda /> },
-      { path: 'alumnos', element: <Alumnos /> },
-      { path: 'pagos', element: <Pagos /> },
-      { path: 'informes', element: <Informes /> },
-    ],
-  },
-])
+// Estilos globales
+import './index.css'
+import './App.css'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ToastProvider>
+      <App />
+    </ToastProvider>
+  </React.StrictMode>
 )
