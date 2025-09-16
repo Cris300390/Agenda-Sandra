@@ -1,9 +1,10 @@
+// src/main.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ToastProvider } from './ui/Toast'
 
-// 👇 Estilos globales (recuperan el look de antes)
+// Estilos globales
 import './index.css'
 import './App.css'
 
