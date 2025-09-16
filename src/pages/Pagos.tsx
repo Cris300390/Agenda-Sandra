@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { format, addMonths } from 'date-fns'
+// src/pages/Pagos.tsx
+import { useToast } from '../ui/Toast'
+import { exportarResumenPDF, type PdfPayload } from '../util/pdf'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { format, addMonths, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   db,
@@ -10,9 +13,18 @@ import {
   getStudentBalance,
 } from '../db'
 
-/* Utilidades simples */
+/* ========= Helpers de formato ========= */
 function ymFromDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` // YYYY-MM
+}
+function monthKeyFromISO(iso: string) {
+  const d = parseISO(iso)
+  return ymFromDate(d)
+}
+function monthLabelFromKey(key: string) {
+  const [y, m] = key.split('-').map(Number)
+  const d = new Date(y, m - 1, 1)
+  return format(d, "LLLL 'de' yyyy", { locale: es }) // septiembre de 2025
 }
 function toMoney(n: number) {
   const v = Number.isFinite(n) ? n : 0
@@ -22,38 +34,26 @@ function eur(n: number) {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n ?? 0)
 }
 
-/* CSV helpers */
-function csvEscape(v: string) {
-  const needs = /[",;\n]/.test(v)
-  const escaped = v.replaceAll('"', '""')
-  return needs ? `"${escaped}"` : escaped
-}
-function toCsvLines(data: Array<{ fecha: string; tipo: string; importe: number; nota: string; paga: string }>) {
-  const header = ['Fecha', 'Tipo', 'Importe', 'Nota', 'Quién paga']
-  const rows = data.map(r => [
-    csvEscape(r.fecha),
-    csvEscape(r.tipo),
-    String(r.importe).replace('.', ','), // coma decimal para Excel ES
-    csvEscape(r.nota),
-    csvEscape(r.paga),
-  ])
-  return [header, ...rows].map(arr => arr.join(';')) // separador ;
-}
-
+/* ========= Componente principal ========= */
 export default function Pagos() {
+  const toast = useToast()
+
   /* Estado base */
   const [students, setStudents] = useState<Student[]>([])
   const [studentId, setStudentId] = useState<number | ''>('')
+
+  // Mes visible (por defecto, el actual)
   const [monthDate, setMonthDate] = useState<Date>(() => {
     const saved = localStorage.getItem('pagos.month')
     return saved ? new Date(saved) : new Date()
   })
-  const ym = useMemo(() => ymFromDate(monthDate), [monthDate])
+  const ym = useMemo(() => ymFromDate(monthDate), [monthDate]) // YYYY-MM del mes visible
+  const monthLabel = format(monthDate, "LLLL 'de' yyyy", { locale: es })
 
   /* Inputs rápidos */
   const [note, setNote] = useState<string>('')
-  const [amountDebt, setAmountDebt] = useState<string>('') // para DEUDA
-  const [amountPay, setAmountPay] = useState<string>('') // para PAGO
+  const [amountDebt, setAmountDebt] = useState<string>('') // DEUDA
+  const [amountPay, setAmountPay] = useState<string>('')   // PAGO
 
   /* Fecha manual del movimiento (datetime-local) */
   const [whenISO, setWhenISO] = useState<string>(() => {
@@ -65,10 +65,18 @@ export default function Pagos() {
   /* Quién paga (solo para pago) */
   const [payer, setPayer] = useState<string>('') // '', Madre, Padre, Alumna, Alumno, Otro
 
-  /* Datos del mes */
+  /* Datos del mes visible */
   const [rows, setRows] = useState<Movement[]>([])
   const [monthTotals, setMonthTotals] = useState({ debt: 0, paid: 0, pending: 0 })
   const [globalTotals, setGlobalTotals] = useState({ debt: 0, paid: 0, pending: 0 })
+
+  /* Resumen de meses anteriores (lista corta) */
+  const [previousSummaries, setPreviousSummaries] = useState<
+    Array<{ key: string; deuda: number; pagado: number; pendiente: number }>
+  >([])
+
+  /* Modal de confirmación de borrado */
+  const [toDelete, setToDelete] = useState<Movement | null>(null)
 
   /* Cargar alumnos una vez */
   useEffect(() => {
@@ -87,8 +95,10 @@ export default function Pagos() {
     localStorage.setItem('pagos.month', monthDate.toISOString())
     loadMonthData(studentId, ym)
     loadGlobalTotals(studentId)
+    loadPreviousSummaries(studentId, ym)
   }, [studentId, ym])
 
+  /* ------- Cargas ------- */
   async function loadMonthData(sId: number, ymKey: string) {
     const all = await db.movements.where('studentId').equals(sId).toArray()
     const monthRows = all
@@ -108,92 +118,143 @@ export default function Pagos() {
     setGlobalTotals(t)
   }
 
-  /* Acciones: añadir deuda/pago, editar, eliminar */
+  // Construye la lista de meses anteriores (últimos 6, excluye el mes visible)
+  async function loadPreviousSummaries(sId: number, currentYm: string) {
+    const all = await db.movements.where('studentId').equals(sId).toArray()
+    const byMonth = new Map<string, Movement[]>()
+
+    for (const m of all) {
+      const key = monthKeyFromISO(m.date)
+      if (!byMonth.has(key)) byMonth.set(key, [])
+      byMonth.get(key)!.push(m)
+    }
+
+    const keys = [...byMonth.keys()]
+      .filter(k => k !== currentYm)
+      .sort((a, b) => b.localeCompare(a)) // descendente
+      .slice(0, 6)
+
+    const summaries = keys.map(key => {
+      const movs = byMonth.get(key) || []
+      const deuda = movs.filter(r => r.type === 'debt').reduce((s, r) => s + (r.amount || 0), 0)
+      const pagado = movs.filter(r => r.type === 'payment').reduce((s, r) => s + (r.amount || 0), 0)
+      const pendiente = deuda - pagado
+      return { key, deuda: toMoney(deuda), pagado: toMoney(pagado), pendiente: toMoney(pendiente) }
+    })
+
+    setPreviousSummaries(summaries)
+  }
+
+  /* ------- Acciones ------- */
   async function onAddDebt() {
     if (!studentId) return
     const v = toMoney(parseFloat(amountDebt))
-    if (!v || v <= 0) return alert('Importe de DEUDA inválido')
+    if (!v || v <= 0) return toast.error('Importe de DEUDA inválido')
     const when = whenISO ? new Date(whenISO) : new Date()
     await addDebt(studentId, v, note || '', when)
     setAmountDebt('')
     setNote('')
     await loadMonthData(studentId, ym)
     await loadGlobalTotals(studentId)
+    await loadPreviousSummaries(studentId, ym)
+    toast.success('Deuda registrada')
   }
 
   async function onAddPayment() {
     if (!studentId) return
     const v = toMoney(parseFloat(amountPay))
-    if (!v || v <= 0) return alert('Importe de PAGO inválido')
+    if (!v || v <= 0) return toast.error('Importe de PAGO inválido')
     const when = whenISO ? new Date(whenISO) : new Date()
     await addPayment(studentId, v, note || '', when, payer || undefined)
     setAmountPay('')
     await loadMonthData(studentId, ym)
     await loadGlobalTotals(studentId)
+    await loadPreviousSummaries(studentId, ym)
+    toast.success('Pago registrado')
   }
 
   async function onEdit(row: Movement) {
     const newAmountStr = prompt('Nuevo importe (€):', String(row.amount))
     if (newAmountStr == null) return
     const newAmount = toMoney(parseFloat(newAmountStr))
-    if (!newAmount || newAmount <= 0) return alert('Importe inválido')
+    if (!newAmount || newAmount <= 0) return toast.error('Importe inválido')
 
     const newNote = prompt('Nueva nota (opcional):', row.note ?? '') ?? row.note ?? ''
     await db.movements.update(row.id!, { amount: newAmount, note: newNote })
     if (studentId) {
       await loadMonthData(studentId, ym)
       await loadGlobalTotals(studentId)
+      await loadPreviousSummaries(studentId, ym)
     }
+    toast.success('Movimiento actualizado')
   }
 
-  async function onDelete(row: Movement) {
-    if (!confirm('¿Eliminar este movimiento?')) return
-    await db.movements.delete(row.id!)
+  function askDelete(row: Movement) {
+    setToDelete(row)
+  }
+
+  async function confirmDelete() {
+    if (!toDelete) return
+    await db.movements.delete(toDelete.id!)
+    setToDelete(null)
     if (studentId) {
       await loadMonthData(studentId, ym)
       await loadGlobalTotals(studentId)
+      await loadPreviousSummaries(studentId, ym)
     }
+    toast.success('Movimiento eliminado')
   }
 
-  /* Exportar CSV del mes (alumno seleccionado) */
-  async function exportMonthCSV() {
+  /* ------- Descargar PDF (mes actual + resumen anteriores) ------- */
+  function onDescargarPDF() {
     if (!studentId) return
-    const studentName = students.find(s => s.id === studentId)?.name ?? 'alumno'
-    const data = rows.map(r => ({
-      fecha: format(new Date(r.date), 'dd/MM/yyyy HH:mm'),
-      tipo: r.type === 'debt' ? 'Deuda' : 'Pago',
-      importe: toMoney(r.amount),
-      nota: r.note ?? '',
-      paga: r.payer ?? '',
-    }))
+    const alumnoNombre = students.find(s => s.id === studentId)?.name ?? 'Alumno'
 
-    // Fila de totales del mes (dejamos pendiente en "Importe")
-    data.push({
-      fecha: '',
-      tipo: 'Totales del mes',
-      importe: toMoney(monthTotals.pending),
-      nota: `Deuda=${toMoney(monthTotals.debt)}; Pagado=${toMoney(monthTotals.paid)}`,
-      paga: '',
-    })
+    const payload: PdfPayload = {
+      alumno: alumnoNombre,
+      mesActualLabel: monthLabel,
+      totalsMes: {
+        deuda: eur(monthTotals.debt),
+        pagado: eur(monthTotals.paid),
+        pendiente: eur(monthTotals.pending),
+      },
+      movimientosMes: rows.map(m => ({
+        fecha: format(new Date(m.date), 'dd/MM/yyyy HH:mm'),
+        tipo: m.type === 'debt' ? 'Deuda' : 'Pago',
+        importe: eur(m.amount),
+        nota: m.note ?? ''
+      })),
+      anteriores: previousSummaries.map(s => ({
+        key: s.key,
+        label: monthLabelFromKey(s.key),
+        deuda: s.deuda,
+        pagado: s.pagado,
+        pendiente: s.pendiente
+      }))
+    }
 
-    const lines = toCsvLines(data)
-    const bom = '\uFEFF'
-    const csv = bom + lines.join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const filename = `pagos_${studentName.replaceAll(' ', '_')}_${ym}.csv`
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    exportarResumenPDF(payload)
+    toast.success('PDF generado')
   }
 
-  const monthLabel = format(monthDate, "LLLL 'de' yyyy", { locale: es })
+  /* ------- ¿Mes al corriente? ------- */
+  const monthOk =
+    monthTotals.pending === 0 &&
+    (monthTotals.debt > 0 || monthTotals.paid > 0 || rows.length > 0)
 
+  /* ------- Trazabilidad: saldo acumulado por fila ------- */
+  const enhancedRows = useMemo(() => {
+    let accDebt = 0
+    let accPaid = 0
+    return rows.map(r => {
+      if (r.type === 'debt') accDebt += r.amount || 0
+      else accPaid += r.amount || 0
+      const pendiente = +(accDebt - accPaid).toFixed(2)
+      return { ...r, accDebt, accPaid, pendiente }
+    })
+  }, [rows])
+
+  /* ========= Render ========= */
   return (
     <div className="page pagos">
       <h2>Pagos</h2>
@@ -296,17 +357,23 @@ export default function Pagos() {
         </div>
       </div>
 
-      {/* Totales y botón Exportar CSV */}
+      {/* Totales + Descargar PDF */}
       <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <h3 style={{ marginTop: 0 }}>Estado del mes</h3>
-          <button onClick={exportMonthCSV}>Exportar CSV</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onDescargarPDF}>Descargar PDF</button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
           <Metric label="Deuda del mes" value={eur(monthTotals.debt)} />
           <Metric label="Pagado en el mes" value={eur(monthTotals.paid)} />
-          <Metric label="Pendiente del mes" value={eur(monthTotals.pending)} />
+          <Metric
+            label={monthOk ? 'Al corriente' : 'Pendiente del mes'}
+            value={eur(monthTotals.pending)}
+            ok={monthOk}
+          />
         </div>
 
         <hr style={{ margin: '1rem 0' }} />
@@ -319,10 +386,10 @@ export default function Pagos() {
         </div>
       </div>
 
-      {/* Lista de movimientos del mes */}
-      <div className="card" style={{ padding: '1rem' }}>
-        <h3 style={{ marginTop: 0 }}>Movimientos del mes</h3>
-        {rows.length === 0 ? (
+      {/* Movimientos del mes (detalle + saldo acumulado) */}
+      <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+        <h3 style={{ marginTop: 0 }}>Movimientos de {monthLabel}</h3>
+        {enhancedRows.length === 0 ? (
           <p>No hay movimientos en este mes.</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -330,51 +397,179 @@ export default function Pagos() {
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left' }}>Fecha</th>
-                  <th style={{ textAlign: 'left' }}>Tipo</th>
+                  <th style={{ textAlign: 'left' }}>Movimiento</th>
                   <th style={{ textAlign: 'right' }}>Importe</th>
+                  <th style={{ textAlign: 'right' }}>Saldo</th>
                   <th style={{ textAlign: 'left' }}>Nota / Paga</th>
                   <th style={{ textAlign: 'left' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(r => (
-                  <tr key={r.id}>
-                    <td>{format(new Date(r.date), 'dd/MM/yyyy HH:mm')}</td>
-                    <td style={{ textTransform: 'capitalize' }}>
-                      {r.type === 'debt' ? 'Deuda' : 'Pago'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{eur(r.amount)}</td>
-                    <td>
-                      {r.note}
-                      {r.payer ? ` — (${r.payer})` : ''}
-                    </td>
-                    <td>
-                      <button onClick={() => onEdit(r)}>Editar</button>{' '}
-                      <button onClick={() => onDelete(r)}>Eliminar</button>
-                    </td>
-                  </tr>
-                ))}
+                {enhancedRows.map(r => {
+                  const isDebt = r.type === 'debt'
+                  const sign = isDebt ? '+' : '−'
+                  const chipStyle = {
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontSize: 12,
+                    lineHeight: '18px',
+                    border: '1px solid',
+                    background: isDebt ? '#fde8e8' : '#e9fce9',
+                    borderColor: isDebt ? '#f8b4b4' : '#b9e6b9',
+                    color: isDebt ? '#9b1c1c' : '#146c2e'
+                  } as const
+                  const moneyStyle = { color: isDebt ? '#c51616' : '#146c2e', fontWeight: 600 } as const
+
+                  return (
+                    <tr key={r.id}>
+                      <td>{format(new Date(r.date), 'dd/MM/yyyy HH:mm')}</td>
+
+                      <td>
+                        <span style={chipStyle}>
+                          {isDebt ? 'Deuda' : 'Pago'}
+                        </span>
+                      </td>
+
+                      <td style={{ textAlign: 'right' }}>
+                        <span style={moneyStyle}>
+                          {sign} {eur(r.amount)}
+                        </span>
+                      </td>
+
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                        {eur(r.pendiente)}
+                      </td>
+
+                      <td>
+                        {r.note}
+                        {r.payer ? ` — (${r.payer})` : ''}
+                      </td>
+
+                      <td>
+                        <button onClick={() => onEdit(r)}>Editar</button>{' '}
+                        <button onClick={() => askDelete(r)}>Eliminar</button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Resumen meses anteriores (compacto) */}
+      <div className="card" style={{ padding: '1rem' }}>
+        <div className="row-between" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ marginTop: 0 }}>Resumen meses anteriores</h3>
+        </div>
+
+        {previousSummaries.length === 0 ? (
+          <p>No hay meses anteriores con movimientos.</p>
+        ) : (
+          <ul className="list-compact" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {previousSummaries.map(s => (
+              <li key={s.key} style={{ padding: '8px 0', borderBottom: '1px solid #f0eefd', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <span style={{ textTransform: 'capitalize' }}>{monthLabelFromKey(s.key)}</span>
+                <span style={{ opacity: 0.8 }}>
+                  Deuda {eur(s.deuda)} · Pagado {eur(s.pagado)} · Pendiente {eur(s.pendiente)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* MODAL: Confirmación de borrado */}
+      <ConfirmModal
+        open={!!toDelete}
+        title="Eliminar movimiento"
+        message="¿Seguro que quieres eliminar este movimiento? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onCancel={() => setToDelete(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+/* Tarjeta métrica con estado OK */
+function Metric({ label, value, ok = false }: { label: string; value: string; ok?: boolean }) {
+  const bg = ok ? '#e9fce9' : 'var(--slot-zebra, #faf5ff)'
+  const border = ok ? '#b9e6b9' : 'var(--slot-sep, #ede9fe)'
+  const valueColor = ok ? '#146c2e' : 'inherit'
+
   return (
     <div style={{
-      background: 'var(--slot-zebra, #faf5ff)',
-      border: '1px solid var(--slot-sep, #ede9fe)',
+      background: bg,
+      border: `1px solid ${border}`,
       borderRadius: 12,
       padding: '0.75rem 1rem',
       minWidth: 180,
       boxShadow: 'var(--shadow, 0 10px 25px rgba(0,0,0,.06))'
     }}>
       <div style={{ fontSize: 12, opacity: 0.8 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: valueColor }}>{value}</div>
     </div>
   )
+}
+
+/* ---------- Modal simple y elegante ---------- */
+function ConfirmModal(props: {
+  open: boolean
+  title: string
+  message: string
+  confirmText?: string
+  cancelText?: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  if (!props.open) return null
+  return (
+    <div style={backdrop}>
+      <div style={modal}>
+        <h3 style={{ margin: '0 0 8px' }}>{props.title}</h3>
+        <p style={{ margin: '0 0 16px', opacity: .85 }}>{props.message}</p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={props.onCancel} style={btnSecondary}>{props.cancelText ?? 'Cancelar'}</button>
+          <button onClick={props.onConfirm} style={btnDanger}>{props.confirmText ?? 'Eliminar'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Estilos del modal (inline para no tocar CSS global) */
+const backdrop: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(8, 8, 15, 0.5)',
+  display: 'grid',
+  placeItems: 'center',
+  zIndex: 9998
+}
+const modal: CSSProperties = {
+  background: 'white',
+  borderRadius: 16,
+  padding: 20,
+  width: 'min(520px, 92vw)',
+  boxShadow: '0 25px 60px rgba(0,0,0,.25)',
+  border: '1px solid #e5e7eb'
+}
+const btnSecondary: CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: 10,
+  border: '1px solid #e5e7eb',
+  background: '#fff',
+  cursor: 'pointer'
+}
+const btnDanger: CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: 10,
+  border: '1px solid #f8b4b4',
+  background: '#fde8e8',
+  color: '#9b1c1c',
+  cursor: 'pointer'
 }
