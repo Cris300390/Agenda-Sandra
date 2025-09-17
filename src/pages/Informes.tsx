@@ -12,6 +12,16 @@ type DayRow = {
   income: number
 }
 
+type DebugPay = {
+  source: 'movements' | 'payments'
+  sid: number | null
+  studentName: string
+  amount: number
+  rawDate: any
+  parsed: Date | null
+  included: boolean
+}
+
 const eur = (n: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n ?? 0)
 
@@ -21,8 +31,7 @@ function asDate(v: any): Date | null {
   if (v instanceof Date && !isNaN(+v)) return v
   if (typeof v === 'number') return new Date(v)
   if (typeof v === 'string') {
-    // Soporta 'YYYY-MM-DD' y ISO con/ sin Z
-    const d = parseISO(v)
+    const d = parseISO(v) // soporta 'YYYY-MM-DD' e ISO con/ sin Z
     return isNaN(+d) ? null : d
   }
   return null
@@ -32,7 +41,7 @@ function num(v: any): number {
   return Number.isFinite(n) ? n : 0
 }
 function sidOf(v: any): number | null {
-  const n = num(v)
+  const n = Number(v)
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 function inRange(d: Date, start: Date, end: Date) {
@@ -43,6 +52,8 @@ export default function Informes() {
   const [date, setDate] = useState<Date>(() => new Date())
   const [rows, setRows] = useState<DayRow[]>([])
   const [summary, setSummary] = useState({ classes: 0, hours: 0, income: 0 })
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [debugList, setDebugList] = useState<DebugPay[]>([])
 
   useEffect(() => {
     const start = startOfDay(date)
@@ -65,31 +76,48 @@ export default function Informes() {
           return s >= start && s <= end && !c.canceled && !c.noShow
         })
 
-        // 2) Normalizamos pagos de movements y payments y sumamos por alumno
-        let paymentsToday = 0
-        const paymentsByStudent: Record<number, number> = {}
+        // 2) Recolectar pagos (con depuración)
+        const dbg: DebugPay[] = []
 
-        const addPayment = (studentId: any, amountRaw: any, dateRaw: any) => {
-          const d = asDate(dateRaw)
-          if (!d || !inRange(d, start, end)) return
-          const amount = num(amountRaw)
-          if (!amount) return
-          paymentsToday += amount
+        const pushDbg = (source: 'movements' | 'payments', studentId: any, amountRaw: any, dateRaw: any) => {
+          const parsed = asDate(dateRaw)
+          const included = parsed ? inRange(parsed, start, end) : false
           const sid = sidOf(studentId)
-          if (sid !== null) paymentsByStudent[sid] = (paymentsByStudent[sid] ?? 0) + amount
+          const st = sid !== null ? students.find((s: any) => s.id === sid) : null
+          dbg.push({
+            source,
+            sid,
+            studentName: st?.name ?? (sid !== null ? `#${sid}` : '—'),
+            amount: num(amountRaw),
+            rawDate: dateRaw,
+            parsed: parsed ?? null,
+            included
+          })
         }
 
         // movements: aceptamos type === 'payment' o registros con amount>0
         movs.forEach((m: any) => {
           if (m?.type && m.type !== 'payment') return
-          addPayment(m?.studentId, m?.amount ?? m?.value, m?.date ?? m?.paidAt ?? m?.createdAt ?? m?.timestamp)
-        })
-        // payments (legacy)
-        pays.forEach((p: any) => {
-          addPayment(p?.studentId, p?.amount ?? p?.value, p?.date ?? p?.paidAt ?? p?.createdAt ?? p?.timestamp)
+          const dateRaw = m?.date ?? m?.paidAt ?? m?.createdAt ?? m?.timestamp
+          pushDbg('movements', m?.studentId, m?.amount ?? m?.value, dateRaw)
         })
 
-        // 3) Filas del día
+        // payments (legacy)
+        pays.forEach((p: any) => {
+          const dateRaw = p?.date ?? p?.paidAt ?? p?.createdAt ?? p?.timestamp
+          pushDbg('payments', p?.studentId, p?.amount ?? p?.value, dateRaw)
+        })
+
+        // 3) Sumar únicamente los incluidos en el día
+        let paymentsToday = 0
+        const paymentsByStudent: Record<number, number> = {}
+        dbg.forEach(d => {
+          if (!d.included || !d.amount) return
+          paymentsToday += d.amount
+          if (d.sid !== null) paymentsByStudent[d.sid] = (paymentsByStudent[d.sid] ?? 0) + d.amount
+        })
+
+        // 4) Filas del día
         const rowsBuilt: DayRow[] = classesToday.map((cls: any) => {
           const st = students.find((s: any) => s.id === cls.studentId)
           const startD = parseISO(cls.start)
@@ -106,7 +134,7 @@ export default function Informes() {
           }
         })
 
-        // 4) Resumen superior
+        // 5) Actualizar estado (resumen, filas y depuración)
         const totalMinutes = rowsBuilt.reduce((a, r) => a + r.durationMin, 0)
         setSummary({
           classes: rowsBuilt.length,
@@ -114,6 +142,7 @@ export default function Informes() {
           income: Math.round(paymentsToday * 100) / 100,
         })
         setRows(rowsBuilt)
+        setDebugList(dbg)
       },
       error: (e) => console.error('Informes liveQuery error:', e),
     })
@@ -141,6 +170,9 @@ export default function Informes() {
             <span>⏱️ {summary.hours} h</span>
             <span>💶 {eur(summary.income)}</span>
           </div>
+          <button onClick={() => setDebugOpen(v => !v)} style={{ marginLeft: 8 }}>
+            {debugOpen ? '🔧 Ocultar pagos del día' : '🔎 Ver pagos del día'}
+          </button>
         </div>
       </div>
 
@@ -161,6 +193,35 @@ export default function Informes() {
         ))}
         {rows.length === 0 && <div className="empty">No hay clases este día.</div>}
       </div>
+
+      {debugOpen && (
+        <div className="panel" style={{ marginTop: 16 }}>
+          <div className="panel-header"><h3>🔎 Pagos detectados hoy</h3></div>
+          <div className="table">
+            <div className="thead">
+              <div>Origen</div>
+              <div>Alumno</div>
+              <div>Importe</div>
+              <div>Fecha (raw)</div>
+              <div>Fecha (parseada)</div>
+              <div>¿Incluido?</div>
+            </div>
+            {debugList.filter(d => d.amount).map((d, i) => (
+              <div className="trow" key={i}>
+                <div>{d.source}</div>
+                <div>{d.studentName}</div>
+                <div>{eur(d.amount)}</div>
+                <div style={{ fontFamily: 'monospace' }}>{String(d.rawDate ?? '—')}</div>
+                <div style={{ fontFamily: 'monospace' }}>
+                  {d.parsed ? format(d.parsed, 'yyyy-MM-dd HH:mm') : '—'}
+                </div>
+                <div>{d.included ? '✅' : '❌'}</div>
+              </div>
+            ))}
+            {debugList.length === 0 && <div className="empty">No hay pagos guardados.</div>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
