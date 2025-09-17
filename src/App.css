@@ -335,3 +335,119 @@ tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-r
 }
 .badge-pink{ background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
 .badge-purple{ background:#ede9fe; color:#6d28d9; border:1px solid #ddd6fe; }
+/* =========================
+   MÓVIL: ancho completo + tamaños cómodos
+   ========================= */
+@media (max-width: 480px){
+  /* Texto base un poco mayor y estable en iOS */
+  html { font-size: 17px; }
+  html, body { margin:0; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+  /* El contenedor principal NO debe estrecharse */
+  #root,
+  main,
+  .app,
+  .page,
+  .container,
+  .content,
+  .panel,
+  .card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Botones y campos: mínimo 44px (accesibilidad) */
+  button, .btn,
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 1rem;              /* ~17px reales */
+    line-height: 1.2;
+    border-radius: 14px;
+  }
+
+  /* Títulos y secciones más legibles */
+  h1, .title-xl { font-size: 1.35rem; }  /* aprox 23px */
+  h2, .title-lg { font-size: 1.15rem; }  /* aprox 20px */
+
+  /* Grupos de pestañas/acciones con más aire */
+  .tabs, .toolbar, .actions { gap: 10px; }
+  .tabs .btn, .toolbar .btn { padding: 10px 14px; }
+}
+/* =========================
+   CALENDARIO — móvil bonito y legible
+   ========================= */
+@media (max-width: 480px){
+  /* Tarjeta del calendario */
+  .cal {
+    background: var(--card);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    padding: 12px;
+    margin: 10px 0 16px;
+  }
+
+  /* Rejilla de días: 7 columnas */
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    padding: 6px 4px 10px;
+  }
+
+  /* Días de la semana (si los usas como cabecera) */
+  .cal-dow {
+    font-size: .8rem;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  /* Celda de día (botón tocable) */
+  .cal-day {
+    position: relative;
+    aspect-ratio: 1 / 1;           /* cuadrado perfecto */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;               /* ~17px */
+    border-radius: 14px;
+    border: 1px solid rgba(236,72,153,.18); /* rosa suave */
+    background: linear-gradient(180deg,#fff,#fff);
+    touch-action: manipulation;
+    min-height: 44px;              /* accesible al dedo */
+    user-select: none;
+  }
+  .cal-day:active { transform: scale(.98); }
+
+  /* Fuera del mes → más tenue */
+  .cal-day.is-outside { opacity: .45; }
+
+  /* Hoy → aro punteado */
+  .cal-day.is-today {
+    outline: 2px dashed var(--brand-2);
+    outline-offset: -3px;
+  }
+
+  /* Seleccionado → degradado bonito */
+  .cal-day.is-selected {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
+    box-shadow: 0 8px 30px rgba(236,72,153,.35);
+  }
+
+  /* Días con eventos → punto indicador abajo */
+  .cal-day.has-events::after {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 9999px;
+    background: var(--brand-2);
+    position: absolute;
+    bottom: 6px;
+  }
+}

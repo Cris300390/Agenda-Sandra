@@ -33,11 +33,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Evita que Pages/Jekyll oculte /assets
+      # Evita que GitHub Pages/Jekyll esconda /assets
       - name: Add .nojekyll
         run: echo > dist/.nojekyll
 
-      # DEBUG: muestra qué vamos a publicar
+      # DEBUG: mostramos qué se va a publicar
       - name: Show dist contents
         run: |
           echo "===== dist/index.html (primeras líneas) ====="

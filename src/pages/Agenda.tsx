@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  addMonths,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  parseISO,
-  startOfMonth,
-  startOfWeek
+  addMonths, addWeeks, addDays,
+  endOfMonth, endOfWeek, format, isSameDay, isSameMonth, parseISO,
+  startOfMonth, startOfWeek
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { db } from '../db'
 import { isHoliday } from '../util/holidays'
 
+/* ===== Config ===== */
+const START_HOUR = 16   // desde 16:00
+const END_HOUR   = 22   // hasta 21:59
+
+/* ===== Tipos ===== */
 type CalendarEvent = {
   id?: number
   title: string
@@ -22,19 +21,37 @@ type CalendarEvent = {
   color?: string
   studentId?: number
 }
+type RepeatOptions = { enabled: boolean; weekdays: number[]; until?: string }
 
+/* ===== Helper: detectar móvil ===== */
+function useIsMobile(max = 480) {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(`(max-width:${max}px)`).matches : true
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${max}px)`)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [max])
+  return isMobile
+}
+
+/* ===== Página ===== */
 export default function Agenda() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [currentDate, setCurrentDate] = useState<Date>(() => {
     const saved = localStorage.getItem('agenda.currentDate')
     return saved ? new Date(saved) : new Date()
   })
+  const [refreshKey, setRefreshKey] = useState(0)
+  const isMobile = useIsMobile()
 
   async function loadEvents() {
     const classes = await db.classes.toArray()
     const students = await db.students.toArray()
     const byId = new Map(students.map(s => [s.id!, s]))
-    const evts: CalendarEvent[] = classes.map((c) => ({
+    const evts: CalendarEvent[] = classes.map(c => ({
       id: c.id,
       title: byId.get(c.studentId)?.name || c.title,
       start: parseISO(c.start),
@@ -45,41 +62,38 @@ export default function Agenda() {
     setEvents(evts)
   }
   ;(window as any).loadEvents = loadEvents
+  const refreshAll = async () => { await loadEvents(); setRefreshKey(k => k + 1) }
 
   useEffect(() => { loadEvents() }, [])
   useEffect(() => { localStorage.setItem('agenda.currentDate', currentDate.toISOString()) }, [currentDate])
 
+  /* Marco sin tarjeta en móvil (pantalla completa, sin bordes) */
+  const frameStyle = isMobile
+    ? { maxWidth: '100%', margin: 0, background: 'transparent', borderRadius: 0, boxShadow: 'none' as const }
+    : { maxWidth: '1200px', margin: '0 auto', background: 'rgba(255,255,255,0.98)', borderRadius: 20, boxShadow: '0 10px 40px rgba(0,0,0,.06)' }
+
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 30%, #fbcfe8 70%, #f9a8d4 100%)',
+      background: 'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#fbcfe8 100%)',
       minHeight: '100dvh',
-      padding: '24px',
-      fontFamily: '\'Inter\', \'Segoe UI\', system-ui, sans-serif'
+      padding: isMobile ? '8px' : '20px',
+      fontFamily: "'Inter','Segoe UI',system-ui,sans-serif"
     }}>
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        background: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: '24px',
-        boxShadow: '0 25px 50px rgba(244, 114, 182, 0.25), 0 0 0 1px rgba(255, 182, 193, 0.3)',
-        backdropFilter: 'blur(20px)',
-        overflow: 'visible' // ✅ importante: no recortar el modal
-      }}>
-        {/* Cabecera */}
+      <div style={frameStyle}>
+        {/* Cabecera simple en móvil */}
         <div style={{
-          background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 30%, #be185d 70%, #db2777 100%)',
-          padding: 'clamp(16px, 4vw, 32px) clamp(20px, 5vw, 40px)',
-          borderRadius: '24px 24px 0 0',
-          position: 'relative',
-          overflow: 'hidden'
+          padding: isMobile ? '8px 10px' : '18px 24px',
+          background: isMobile ? 'transparent' : 'linear-gradient(135deg,#f472b6,#ec4899)',
+          color: isMobile ? '#be185d' : 'white',
+          borderRadius: isMobile ? 0 : '20px 20px 0 0'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0, color: 'white', fontSize: 'clamp(28px, 6vw, 48px)', fontWeight: 800 }}>Agenda Sandra</h1>
-          </div>
+          <h1 style={{ margin: 0, fontWeight: 800, fontSize: isMobile ? 24 : 34 }}>Agenda Sandra</h1>
         </div>
 
-        <div style={{ padding: 'var(--m-wrap-pad)' }}>
+        <div style={{ padding: isMobile ? 0 : 16 }}>
           <MonthTable
+            isMobile={isMobile}
+            key={refreshKey}
             date={currentDate}
             events={events}
             onPickDay={(d) => setCurrentDate(d)}
@@ -89,50 +103,76 @@ export default function Agenda() {
           />
 
           {/* Día */}
-          <section aria-labelledby="tabla-dia" style={{ marginTop: 24 }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)',
-              padding: '16px 20px',
-              borderRadius: '20px 20px 0 0',
-              border: '1px solid #f3e8ff'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <h3 id="tabla-dia" style={{ margin: 0, color: '#be185d', fontSize: 22, fontWeight: 700 }}>Agenda del Día</h3>
-                <div className="buttons" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => setCurrentDate(new Date())}>🏠 Hoy</button>
-                  <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - 1))}>← Anterior</button>
-                  <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1))}>Siguiente →</button>
-                  <input
-                    aria-label="Elegir fecha"
-                    type="date"
-                    value={`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`}
-                    onChange={(e) => {
-                      const [y, m, d] = e.target.value.split('-').map(Number)
-                      setCurrentDate(new Date(y, m - 1, d))
-                    }}
-                  />
-                </div>
+          <section style={{ marginTop: isMobile ? 8 : 12 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: isMobile ? '8px 4px' : '10px 6px' }}>
+              <strong style={{ color: '#be185d' }}>
+                {format(currentDate, "EEEE d 'de' LLLL", { locale: es })}
+              </strong>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
+                <button onClick={() => setCurrentDate(new Date())}>Hoy</button>
+                <button onClick={() => setCurrentDate(addDays(currentDate, -1))}>←</button>
+                <button onClick={() => setCurrentDate(addDays(currentDate, 1))}>→</button>
+                <input
+                  type="date"
+                  value={`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`}
+                  onChange={(e) => {
+                    const [y, m, d] = e.target.value.split('-').map(Number)
+                    setCurrentDate(new Date(y, m - 1, d))
+                  }}
+                />
               </div>
             </div>
 
             <DayTable
+              isMobile={isMobile}
               date={currentDate}
               events={events}
-              onCreateAtSlot={async (_slot, studentId, start, end) => {
+              onCreateAtSlot={async (_slot, studentId, start, end, repeat) => {
                 if (!studentId || !start || !end) return
                 const student = await db.students.get(studentId)
                 if (!student) return
+
+                // 1 sola clase
+                if (!repeat?.enabled || (repeat.weekdays ?? []).length === 0) {
+                  const [sH, sM] = start.split(':').map(Number)
+                  const [eH, eM] = end.split(':').map(Number)
+                  const st = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), sH, sM)
+                  const en = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), eH, eM)
+                  await db.classes.add({ studentId: student.id!, title: 'Clase', start: st.toISOString(), end: en.toISOString() })
+                  await refreshAll()
+                  return
+                }
+
+                // Repetición semanal
+                const until = repeat.until ? new Date(repeat.until) : addWeeks(currentDate, 8)
+                const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+                const daysW = repeat.weekdays!.slice().sort()
                 const [sH, sM] = start.split(':').map(Number)
                 const [eH, eM] = end.split(':').map(Number)
-                const startTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), sH, sM)
-                const endTime = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), eH, eM)
-                await db.classes.add({ studentId: student.id!, title: 'Clase', start: startTime.toISOString(), end: endTime.toISOString() })
-                await loadEvents()
+
+                const adds: { start: string; end: string }[] = []
+                let ws = weekStart
+                while (ws <= until) {
+                  for (const w of daysW) {
+                    const d = addDays(ws, w - 1)
+                    if (d < currentDate || d > until) continue
+                    const st = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sH, sM)
+                    const en = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eH, eM)
+                    adds.push({ start: st.toISOString(), end: en.toISOString() })
+                  }
+                  ws = addWeeks(ws, 1)
+                }
+                if (adds.length === 0) return
+
+                await db.transaction('rw', db.classes, async () => {
+                  for (const a of adds) await db.classes.add({ studentId: student.id!, title: 'Clase', start: a.start, end: a.end })
+                })
+                await refreshAll()
               }}
-              onDeleteEvent={async () => { await loadEvents() }}
-              onUpdateEvent={async (evId, newStart, newEnd, newStudentId) => {
-                await db.classes.update(evId, { start: newStart.toISOString(), end: newEnd.toISOString(), studentId: newStudentId })
-                await loadEvents()
+              onDeleteEvent={async () => { await refreshAll() }}
+              onUpdateEvent={async (id, newStart, newEnd, sid) => {
+                await db.classes.update(id, { start: newStart.toISOString(), end: newEnd.toISOString(), studentId: sid })
+                await refreshAll()
               }}
             />
           </section>
@@ -142,142 +182,117 @@ export default function Agenda() {
   )
 }
 
-/* ===================== DAY TABLE ===================== */
-
-type DayTableProps = {
+/* ===== DayTable ===== */
+function DayTable({
+  isMobile, date, events,
+  onCreateAtSlot, onDeleteEvent, onUpdateEvent
+}:{
+  isMobile: boolean
   date: Date
   events: CalendarEvent[]
-  onCreateAtSlot?: (slot: string, studentId?: number, start?: string, end?: string) => void
-  onDeleteEvent?: (ev: CalendarEvent) => void
+  onCreateAtSlot?: (slot: string, studentId?: number, start?: string, end?: string, repeat?: RepeatOptions) => void
+  onDeleteEvent?: () => void
   onUpdateEvent?: (evId: number, newStart: Date, newEnd: Date, studentId?: number) => void
-}
-
-/** Colores pastel por índice (cíclico cada 6) */
-function slotColors(idx: number) {
-  const bg1 = ['#fff1f5','#f2f7ff','#f6fff1','#fffaf1','#f6f1ff','#f1fffb'][idx % 6]
-  const border = ['#ffd7e4','#cfe1ff','#d8f7c4','#ffe2bf','#d9ccff','#bff3e6'][idx % 6]
-  const shadowRGBA = [
-    'rgba(255,105,180,.08)','rgba(100,149,237,.08)','rgba(46,204,113,.08)',
-    'rgba(255,159,67,.08)','rgba(155,89,182,.08)','rgba(26,188,156,.08)'
-  ][idx % 6]
-  return { bg1, border, shadow: shadowRGBA }
-}
-
-function DayTable(props: DayTableProps) {
-  const { date, events, onCreateAtSlot, onUpdateEvent } = props
+}) {
   const MAX_PER_SLOT = 10
 
   const dayEvents = useMemo(() => {
     return events
-      .filter(event => {
-        const eventDate = new Date(event.start)
-        const eventHour = eventDate.getHours()
-        return eventDate.toDateString() === date.toDateString() && eventHour >= 16 && eventHour < 22
+      .filter(e => {
+        const d = new Date(e.start)
+        const h = d.getHours()
+        return d.toDateString() === date.toDateString() && h >= START_HOUR && h < END_HOUR
       })
       .sort((a, b) => (a.start as Date).getTime() - (b.start as Date).getTime())
   }, [date, events])
 
   const timeSlots = useMemo(() => {
     const slots: string[] = []
-    for (let h = 16; h <= 21; h++) slots.push(`${String(h).padStart(2, '0')}:00`)
+    for (let h = START_HOUR; h <= END_HOUR - 1; h++) slots.push(`${String(h).padStart(2, '0')}:00`)
     return slots
   }, [])
 
-  function findEventsInSlot(slot: string): CalendarEvent[] {
+  function eventsIn(slot: string) {
     const [hh] = slot.split(':').map(Number)
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, 0)
-    const slotEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh + 1, 0)
-    return dayEvents.filter(ev => {
-      const s = ev.start as Date
-      const e = ev.end as Date
-      return (s < slotEnd && e > slotStart)
-    })
+    const slotEnd   = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh + 1, 0)
+    return dayEvents.filter(ev => (ev.start as Date) < slotEnd && (ev.end as Date) > slotStart)
   }
 
+  /* Layout: móvil apila (agenda -> resumen). Escritorio: 2 columnas. Sin bordes. */
+  const gridStyle = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : '1fr 340px',
+    gap: isMobile ? 8 : 16
+  } as const
+
   return (
-    <div style={{ background: 'white', borderRadius: '0 0 20px 20px', border: '1px solid #f3e8ff', borderTop: 'none' }}>
-      <div style={{ overflowX: 'auto', padding: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'var(--agenda-cols, 1fr 320px)', gap: 24 }}>
-          <table role="table" aria-label="Agenda del día" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '12px 16px' }}>⏰ Horario</th>
-                <th style={{ textAlign: 'left', padding: '12px 16px' }}>👥 Estudiantes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map((slot, idx) => {
-                const eventsInSlot = findEventsInSlot(slot)
-                const isAtCapacity = eventsInSlot.length >= MAX_PER_SLOT
-                const isLongGap = eventsInSlot.length === 0
-                const { bg1, border, shadow } = slotColors(idx)
+    <div style={{ padding: isMobile ? '0 2px' : 0 }}>
+      <div style={gridStyle}>
+        {/* Tabla horario */}
+        <table role="table" aria-label="Agenda del día" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 10px' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontSize: 13 }}>Horario</th>
+              <th style={{ textAlign: 'left', padding: '8px 6px', fontSize: 13 }}>Estudiantes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {timeSlots.map((slot, idx) => {
+              const list = eventsIn(slot)
+              const isEmpty = list.length === 0
+              const bg = ['#fff1f5','#f2f7ff','#f6fff1','#fffaf1','#f6f1ff','#f1fffb'][idx % 6]
+              const rowStyle: React.CSSProperties = { background: bg, borderRadius: 14, boxShadow: '0 6px 16px rgba(0,0,0,.06)' }
 
-                const leftCellStyle: React.CSSProperties = {
-                  padding: 0, verticalAlign: 'top',
-                  background: `linear-gradient(180deg, ${bg1}, #ffffff)`,
-                  border: `1px solid ${border}`, borderRight: 'none',
-                  borderRadius: '12px 0 0 12px', boxShadow: `0 6px 14px ${shadow}`, position: 'relative', minWidth: 0
-                }
-                const rightCellStyle: React.CSSProperties = {
-                  padding: 0, verticalAlign: 'top',
-                  background: `linear-gradient(180deg, ${bg1}, #ffffff)`,
-                  border: `1px solid ${border}`, borderLeft: 'none',
-                  borderRadius: '0 12px 12px 0', boxShadow: `0 6px 14px ${shadow}`, position: 'relative', minWidth: 0
-                }
+              return (
+                <tr key={slot}>
+                  <td style={{ ...rowStyle, padding: 14, width: 110, verticalAlign: 'top' }}>
+                    <div style={{ fontWeight: 800, fontSize: 18 }}>{slot}</div>
+                    <div style={{ fontWeight: 800, fontSize: 18 }}>{String(parseInt(slot) + 1).padStart(2,'0')}:00</div>
+                    {isEmpty && <div style={{ fontSize: 12, color: '#059669' }}>Disponible</div>}
+                  </td>
 
-                return (
-                  <tr key={slot}>
-                    <td style={leftCellStyle}>
-                      <div style={{ padding: '16px', minHeight: 110 }}>
-                        <div style={{ fontSize: 18, fontWeight: 800 }}>{slot}</div>
-                        <div style={{ fontSize: 18, fontWeight: 800 }}>
-                          {String(parseInt(slot.split(':')[0]) + 1).padStart(2, '0')}:00
+                  <td style={{ ...rowStyle, padding: 14 }}>
+                    {list.length > 0 ? (
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                          {list.map(ev => (
+                            <Pill
+                              key={String(ev.id)}
+                              event={ev}
+                              onUpdate={onUpdateEvent}
+                              onDelete={async (id) => {
+                                await db.classes.delete(id)
+                                if (onDeleteEvent) await onDeleteEvent()
+                              }}
+                            />
+                          ))}
                         </div>
-                        {isLongGap && <div style={{ fontSize: 12, color: '#059669' }}>✨ Disponible</div>}
-                        {isAtCapacity && <div style={{ fontSize: 12, color: '#dc2626' }}>🚫 Completo</div>}
+                        <InlineAdd slot={slot} onCreate={onCreateAtSlot} compact />
                       </div>
-                    </td>
+                    ) : (
+                      <InlineAdd slot={slot} onCreate={onCreateAtSlot} />
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
 
-                    <td style={rightCellStyle}>
-                      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 6, background: border, opacity: .25, borderRadius: '0 12px 12px 0' }} />
-                      {eventsInSlot.length > 0 ? (
-                        <div style={{ padding: '16px 20px', minHeight: 110 }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
-                            {eventsInSlot.map(ev => <EditablePill key={`${slot}-${ev.id}`} event={ev} onUpdate={onUpdateEvent} />)}
-                          </div>
-                          {!isAtCapacity && (
-                            <div style={{ paddingTop: 12, borderTop: '1px solid #eee', marginTop: 8 }}>
-                              <InlineAdd slot={slot} onCreate={onCreateAtSlot} disabled={false} max={MAX_PER_SLOT} compact />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div style={{ padding: '16px 20px', minHeight: 110 }}>
-                          <InlineAdd slot={slot} onCreate={onCreateAtSlot} disabled={false} max={MAX_PER_SLOT} />
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-
-          <AsideResumen dayEvents={dayEvents} timeSlots={timeSlots} findEventsInSlot={findEventsInSlot} />
-        </div>
+        {/* Resumen del día (siempre debajo en móvil) */}
+        <ResumenPanel date={date} dayEvents={dayEvents} timeSlots={timeSlots} eventsIn={eventsIn} />
       </div>
     </div>
   )
 }
 
-/* ---------- InlineAdd ---------- */
+/* ===== Crear + Repetir semanal ===== */
 function InlineAdd({
-  slot, onCreate, disabled, max, compact
-}: {
+  slot, onCreate, compact
+}:{
   slot: string
-  onCreate?: (slot: string, studentId?: number, start?: string, end?: string) => void
-  disabled?: boolean
-  max?: number
+  onCreate?: (slot: string, studentId?: number, start?: string, end?: string, repeat?: RepeatOptions) => void
   compact?: boolean
 }) {
   const [students, setStudents] = useState<{ id?: number; name: string }[]>([])
@@ -285,258 +300,309 @@ function InlineAdd({
   const [start, setStart] = useState<string>(slot)
   const [end, setEnd] = useState<string>(() => {
     const [h] = slot.split(':').map(Number)
-    return `${String(h + 1).padStart(2, '0')}:00`
+    return `${String(h + 1).padStart(2,'0')}:00`
   })
+
+  // Repetir
+  const weekdayNames = ['L','M','X','J','V','S','D']
+  const todayW = ((new Date().getDay() + 6) % 7) + 1 // 1..7
+  const [repeatEnabled, setRepeatEnabled] = useState(false)
+  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([todayW])
+  const [repeatUntil, setRepeatUntil] = useState<string>(format(addWeeks(new Date(), 8), 'yyyy-MM-dd'))
 
   useEffect(() => { (async () => setStudents(await db.students.orderBy('name').toArray()))() }, [])
 
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select aria-label="Alumno" value={sid} onChange={(e) => setSid(e.target.value)} disabled={disabled}>
-          <option value="">🎓 Seleccionar alumno…</option>
-          {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <button
-          onClick={async () => {
-            if (!onCreate || !sid) return
-            await onCreate(slot, Number(sid), start, end)
-            setSid('')
-            const loadEvents = (window as any).loadEvents
-            if (loadEvents) await loadEvents()
-          }}
-          disabled={disabled || !sid}
-        >
-          ✨ Añadir Alumno
-        </button>
-      </div>
-    )
+  function toggle(w: number) {
+    setRepeatWeekdays(prev => prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w])
+  }
+
+  async function create() {
+    if (!onCreate || !sid) return
+    const repeat = repeatEnabled ? { enabled: true, weekdays: repeatWeekdays, until: repeatUntil } : { enabled: false, weekdays: [] }
+    await onCreate(slot, Number(sid), start, end, repeat)
+    setSid('')
+    const load = (window as any).loadEvents
+    if (load) await load()
   }
 
   return (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      <select aria-label="Alumno" value={sid} onChange={(e) => setSid(e.target.value)} disabled={disabled}>
-        <option value="">Alumno…</option>
-        {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-      </select>
-      <input aria-label="Desde" type="time" value={start} step={900} onChange={(e) => setStart(e.target.value)} disabled={disabled} />
-      <input aria-label="Hasta" type="time" value={end} step={900} onChange={(e) => setEnd(e.target.value)} disabled={disabled} />
-      <button
-        onClick={async (e) => {
-          e.preventDefault()
-          if (!onCreate || !sid) return
-          await onCreate(slot, Number(sid), start, end)
-          const loadEvents = (window as any).loadEvents
-          if (loadEvents) await loadEvents()
-        }}
-        disabled={disabled}
-      >
-        Añadir
-      </button>
-      {disabled && <span style={{ color: '#ef4444', fontSize: 12 }}>Cupo lleno ({max})</span>}
+    <div style={{ display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select value={sid} onChange={(e) => setSid(e.target.value)} style={{ minWidth: 140 }}>
+          <option value="">Seleccionar alumno…</option>
+          {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        {!compact && (
+          <>
+            <input type="time" value={start} step={900} onChange={e => setStart(e.target.value)} />
+            <input type="time" value={end}   step={900} onChange={e => setEnd(e.target.value)} />
+          </>
+        )}
+        <button onClick={create} disabled={!sid}>Añadir</button>
+      </div>
+
+      {/* Repetir */}
+      <div style={{ display: 'grid', gap: 6, background: '#fff7fb', border: '1px dashed #ec4899', borderRadius: 12, padding: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={repeatEnabled} onChange={e => setRepeatEnabled(e.target.checked)} />
+          Repetir semanalmente
+        </label>
+        {repeatEnabled && (
+          <>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {weekdayNames.map((n, i) => {
+                const w = i + 1
+                const active = repeatWeekdays.includes(w)
+                return (
+                  <button key={w} type="button"
+                    onClick={() => toggle(w)}
+                    style={{
+                      padding: '6px 10px', borderRadius: 9999,
+                      border: active ? '2px solid #ec4899' : '1px solid #e5e7eb',
+                      background: active ? '#fdf2f8' : 'white', fontWeight: 700
+                    }}>
+                    {n}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>Hasta:</span>
+              <input type="date" value={repeatUntil} onChange={e => setRepeatUntil(e.target.value)} />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
-/* ---------- Aside ---------- */
-function AsideResumen({ dayEvents, timeSlots, findEventsInSlot }:{
-  dayEvents: CalendarEvent[], timeSlots: string[], findEventsInSlot: (slot: string)=>CalendarEvent[]
+/* ===== Píldora editable ===== */
+function Pill({
+  event, onUpdate, onDelete
+}:{
+  event: CalendarEvent
+  onUpdate?: (id: number, s: Date, e: Date, sid?: number) => void
+  onDelete?: (id: number) => void
 }) {
-  return (
-    <aside aria-label="Horas ocupadas" style={{ background: '#fafbfc', borderRadius: 16, padding: 20, border: '1px solid #e2e8f0' }}>
-      <h4 style={{ margin: 0, color: '#be185d', fontSize: 20, fontWeight: 700 }}>Resumen del Día</h4>
-      <div style={{ display: 'grid', gap: 16, marginTop: 12 }}>
-        <div style={{ padding: 16, background: '#ec4899', borderRadius: 16, color: 'white' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>📚 Total Clases</span>
-            <span style={{ fontSize: 22, fontWeight: 800 }}>{dayEvents.length}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span>👥 Alumnos</span>
-            <span style={{ fontSize: 22, fontWeight: 800 }}>{new Set(dayEvents.map(e => e.title)).size}</span>
-          </div>
-        </div>
-
-        <div style={{ padding: 16, background: '#7c3aed', borderRadius: 16, color: 'white' }}>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>🕰️ Ocupación por Franja</div>
-          <div style={{ display: 'grid', gap: 4 }}>
-            {timeSlots.map(slot => {
-              const slotEvents = findEventsInSlot(slot)
-              const [startHour] = slot.split(':').map(Number)
-              const endHour = startHour + 1
-              return (
-                <div key={slot} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span>{String(startHour).padStart(2, '0')}:00-{String(endHour).padStart(2, '0')}:00</span>
-                  <span>{slotEvents.length}/10</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </aside>
-  )
-}
-
-/* ===================== UTILS ===================== */
-function adjustColorBrightness(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const amt = Math.round(2.55 * percent)
-  const R = (num >> 16) + amt
-  const G = (num >> 8 & 0x00FF) + amt
-  const B = (num & 0x0000FF) + amt
-  return '#' + (0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-    (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-    (B < 255 ? (B < 1 ? 0 : B) : 255)).toString(16).slice(1)
-}
-
-function EditablePill({ event, onUpdate }: { event: CalendarEvent; onUpdate?: (evId: number, newStart: Date, newEnd: Date, studentId?: number) => void }) {
-  const [, setStudents] = useState<{ id?: number; name: string }[]>([])
-  const [currentStudent, setCurrentStudent] = useState<{ id?: number; name: string } | null>(null)
-  const [start, setStart] = useState<string>(() => {
-    const d = event.start as Date
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  })
-  const [end, setEnd] = useState<string>(() => {
-    const d = event.end as Date
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  })
+  const [start, setStart] = useState(() => format(event.start as Date, 'HH:mm'))
+  const [end,   setEnd]   = useState(() => format(event.end as Date, 'HH:mm'))
   const [isEditing, setIsEditing] = useState(false)
-
-  useEffect(() => {
-    ;(async () => {
-      const allStudents = await db.students.orderBy('name').toArray()
-      setStudents(allStudents)
-      if (event.studentId) {
-        const student = allStudents.find(s => s.id === event.studentId)
-        setCurrentStudent(student || null)
-      }
-    })()
-  }, [event.studentId])
 
   async function save() {
     const [sH, sM] = start.split(':').map(Number)
     const [eH, eM] = end.split(':').map(Number)
-    const day = event.start as Date
-    const newStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), sH, sM)
-    const newEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), eH, eM)
-    if (event.id && onUpdate) onUpdate(event.id, newStart, newEnd, currentStudent?.id)
+    const d = event.start as Date
+    const ns = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sH, sM)
+    const ne = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eH, eM)
+    if (event.id && onUpdate) onUpdate(event.id, ns, ne, event.studentId)
     setIsEditing(false)
   }
 
   if (!isEditing) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{
-          background: `linear-gradient(135deg, ${(event as any).color || '#fb7185'} 0%, ${adjustColorBrightness((event as any).color || '#fb7185', -20)} 100%)`,
-          color: 'white', padding: '8px 16px', borderRadius: 12, fontSize: 13, fontWeight: 600
+        <span style={{
+          background: `linear-gradient(135deg, ${event.color || '#fb7185'}, #a855f7)`,
+          color: 'white', padding: '8px 12px', borderRadius: 12, fontSize: 13, fontWeight: 700
         }}>
-          <div style={{ fontWeight: 700 }}>{event.title}</div>
-          <div style={{ fontSize: 11 }}>{start} - {end}</div>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={() => setIsEditing(true)} style={{ fontSize: 10 }}>✏️</button>
-          <button
-            type="button"
-            style={{ fontSize: 10 }}
-            onMouseDown={async (e) => {
-              e.preventDefault(); e.stopPropagation()
-              try {
-                if (event.id) {
-                  await db.classes.delete(event.id)
-                  const loadEventsFn = (window as any).loadEvents
-                  if (loadEventsFn) await loadEventsFn()
-                }
-              } catch (error) { alert('Error: ' + error) }
-            }}
-          >
-            🗑️
-          </button>
-        </div>
+          {event.title} · {format(event.start as Date, 'HH:mm')}–{format(event.end as Date, 'HH:mm')}
+        </span>
+        <button onClick={() => setIsEditing(true)} style={{ fontSize: 12 }}>✏️</button>
+        <button onClick={() => event.id && onDelete && onDelete(event.id)} style={{ fontSize: 12 }}>🗑️</button>
       </div>
     )
   }
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-      <span style={{ background: (event as any).color || '#fb7185', color: 'white', padding: '6px 10px', borderRadius: 8 }}>
-        {currentStudent ? currentStudent.name : 'Alumno demo'}
-      </span>
-      <input aria-label="Desde" type="time" value={start} step={900} onChange={(e) => setStart(e.target.value)} />
-      <input aria-label="Hasta" type="time" value={end} step={900} onChange={(e) => setEnd(e.target.value)} />
+      <strong>{event.title}</strong>
+      <input type="time" value={start} step={900} onChange={e => setStart(e.target.value)} />
+      <input type="time" value={end}   step={900} onChange={e => setEnd(e.target.value)} />
       <button onClick={save}>Guardar</button>
       <button onClick={() => setIsEditing(false)}>Cancelar</button>
     </div>
   )
 }
 
-/* ===================== MONTH TABLE ===================== */
-
-function MonthTable({
-  date, events, onPickDay, onPrevMonth, onNextMonth, onToday
-}: {
-  date: Date; events: CalendarEvent[]
-  onPickDay: (d: Date) => void; onPrevMonth: () => void; onNextMonth: () => void; onToday: () => void
+/* ===== Resumen día (amigable con color) ===== */
+function ResumenPanel({
+  date, dayEvents, timeSlots, eventsIn
+}:{
+  date: Date
+  dayEvents: CalendarEvent[]
+  timeSlots: string[]
+  eventsIn: (slot: string) => CalendarEvent[]
 }) {
-  const start = startOfWeek(startOfMonth(date), { weekStartsOn: 1 })
-  const end = endOfWeek(endOfMonth(date), { weekStartsOn: 1 })
+  const CAP = 10 // capacidad por franja
+  const fmt = (d: Date) => format(d, 'HH:mm')
 
-  const days: Date[] = []
-  let d = start
-  while (d <= end) {
-    days.push(d)
-    d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+  // Agrupa por alumno
+  const alumnos = useMemo(() => {
+    const m = new Map<string, { color: string; times: string[] }>()
+    for (const e of dayEvents) {
+      const name = e.title
+      const t = `${fmt(e.start as Date)}–${fmt(e.end as Date)}`
+      const color = e.color || '#ec4899'
+      if (!m.has(name)) m.set(name, { color, times: [t] })
+      else m.get(name)!.times.push(t)
+    }
+    return Array.from(m, ([name, v]) => ({ name, color: v.color, times: v.times }))
+  }, [dayEvents])
+
+  const totalClases = dayEvents.length
+  const totalAlumnos = alumnos.length
+
+  const pctColor = (p: number) => {
+    if (p >= 0.9) return '#ef4444'
+    if (p >= 0.6) return '#f59e0b'
+    return '#22c55e'
   }
 
-  function eventsCount(day: Date) { return events.filter(e => isSameDay(e.start, day)).length }
-  function uniqueStudentsCount(day: Date) { return new Set(events.filter(e => isSameDay(e.start, day)).map(e => e.title)).size }
-
   return (
-    <section aria-labelledby="tabla-mes" style={{ marginBottom: 24, borderRadius: 20, padding: 'var(--m-wrap-pad)', border: '1px solid #e5e7eb' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 }}>
-        <h3 id="tabla-mes" style={{ margin: 0, color: '#1e293b', fontSize: 'var(--m-title)', fontWeight: 700 }}>
-          {format(date, 'LLLL yyyy', { locale: es })}
-        </h3>
-        <div className="buttons" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={onToday}>🏠 Hoy</button>
-          <button onClick={onPrevMonth}>← Anterior</button>
-          <button onClick={onNextMonth}>Siguiente →</button>
+    <aside style={{ display: 'grid', gap: 10 }}>
+      {/* Tarjetas resumen */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
+        <div style={{
+          background: 'linear-gradient(135deg,#f472b6,#ec4899)',
+          color: 'white', padding: 14, borderRadius: 14, boxShadow: '0 8px 20px rgba(236,72,153,.25)'
+        }}>
+          <div style={{ opacity: .9 }}>Clases</div>
+          <div style={{ fontWeight: 900, fontSize: 24 }}>{totalClases}</div>
+        </div>
+        <div style={{
+          background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+          color: 'white', padding: 14, borderRadius: 14, boxShadow: '0 8px 20px rgba(124,58,237,.25)'
+        }}>
+          <div style={{ opacity: .9 }}>Alumnos</div>
+          <div style={{ fontWeight: 900, fontSize: 24 }}>{totalAlumnos}</div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 'var(--m-gap)' }}>
-        {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(h => (
-          <div key={h} style={{ fontWeight: 700, padding: '8px 4px', textAlign: 'center', fontSize: 'var(--m-weekday)' }}>{h}</div>
+      {/* Ocupación por franja (con barra) */}
+      <div style={{ background: 'white', padding: 14, borderRadius: 14, boxShadow: '0 6px 16px rgba(0,0,0,.06)' }}>
+        <div style={{ fontWeight: 800, marginBottom: 8, color: '#334155' }}>🕰️ Ocupación</div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {timeSlots.map(slot => {
+            const list = eventsIn(slot)
+            const used = list.length
+            const pct = used / CAP
+            const barColor = pctColor(pct)
+            const [h] = slot.split(':').map(Number)
+            const label = `${String(h).padStart(2,'0')}:00–${String(h+1).padStart(2,'0')}:00`
+            return (
+              <div key={slot}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#475569', marginBottom: 4 }}>
+                  <span>{label}</span><span>{used}/{CAP}</span>
+                </div>
+                <div style={{ height: 8, background: '#eef2f7', borderRadius: 9999, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(100, pct*100)}%`, height: '100%', background: barColor }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Alumnos y horas (chips de color) */}
+      <div style={{ background: 'white', padding: 14, borderRadius: 14, boxShadow: '0 6px 16px rgba(0,0,0,.06)' }}>
+        <div style={{ fontWeight: 800, marginBottom: 8, color: '#334155' }}>👦👧 Alumnos y horas</div>
+        {alumnos.length === 0 && <div style={{ color: '#64748b' }}>Sin clases hoy.</div>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {alumnos.map((a, i) => (
+            <span key={i} style={{
+              background: `linear-gradient(135deg, ${a.color}, #a855f7)`,
+              color: 'white', padding: '6px 10px', borderRadius: 9999, fontSize: 12,
+              boxShadow: '0 6px 18px rgba(0,0,0,.08)'
+            }}>
+              {a.name} · {a.times.join(', ')}
+            </span>
+          ))}
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+/* ===== Mes (compacto en móvil) ===== */
+function MonthTable({
+  isMobile, date, events, onPickDay, onPrevMonth, onNextMonth, onToday
+}: {
+  isMobile: boolean
+  date: Date
+  events: CalendarEvent[]
+  onPickDay: (d: Date) => void
+  onPrevMonth: () => void
+  onNextMonth: () => void
+  onToday: () => void
+}) {
+  const start = startOfWeek(startOfMonth(date), { weekStartsOn: 1 })
+  const end   = endOfWeek(endOfMonth(date),   { weekStartsOn: 1 })
+
+  const days: Date[] = []
+  let d = start
+  while (d <= end) { days.push(d); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) }
+
+  function inHours(e: CalendarEvent) {
+    const h = (e.start as Date).getHours()
+    return h >= START_HOUR && h < END_HOUR
+  }
+  function eventsCount(day: Date) { return events.filter(e => inHours(e) && isSameDay(e.start, day)).length }
+  function uniqueStudentsCount(day: Date) { return new Set(events.filter(e => inHours(e) && isSameDay(e.start, day)).map(e => e.title)).size }
+
+  // Tamaños compactos en móvil
+  const gap         = isMobile ? 4  : 8
+  const titleSize   = isMobile ? 16 : 18
+  const weekdaySize = isMobile ? 11 : 12
+  const cellPad     = isMobile ? 6  : 10
+  const dayNumSize  = isMobile ? 14 : 16
+  const badge1 = { fontSize: isMobile ? 10 : 11, padding: isMobile ? '1px 5px' : '2px 6px' }
+  const badge2 = { fontSize: isMobile ? 8  : 9,  padding: isMobile ? '1px 5px' : '2px 6px' }
+
+  return (
+    <section style={{ marginBottom: isMobile ? 6 : 8, background: 'transparent' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+        <strong style={{ fontSize: titleSize }}>{format(date, 'LLLL yyyy', { locale: es })}</strong>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button onClick={onToday}>Hoy</button>
+          <button onClick={onPrevMonth}>←</button>
+          <button onClick={onNextMonth}>→</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap }}>
+        {['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(h => (
+          <div key={h} style={{ textAlign: 'center', fontSize: weekdaySize, color: '#64748b', fontWeight: 700 }}>{h}</div>
         ))}
         {days.map((day) => {
           const inactive = !isSameMonth(day, date)
           const selected = isSameDay(day, date)
           const count = eventsCount(day)
-          const studentsCount = uniqueStudentsCount(day)
+          const students = uniqueStudentsCount(day)
           const holiday = isHoliday(day)
+
           return (
             <button
               key={day.toISOString()}
               onClick={() => onPickDay(day)}
               style={{
                 textAlign: 'left',
-                padding: 'var(--m-cell-pad)',
-                borderRadius: 12,
-                border: holiday ? '2px solid #f87171' : selected ? '2px solid #ec4899' : '1px solid #e2e8f0',
-                background: selected ? '#fdf2f8' : holiday ? '#fee2e2' : 'white',
-                opacity: inactive ? 0.6 : 1
+                padding: cellPad,
+                borderRadius: 10,
+                border: 'none',
+                background: selected ? '#fdf2f8' : 'white',
+                opacity: inactive ? .6 : 1,
+                boxShadow: '0 4px 12px rgba(0,0,0,.05)'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: dayNumSize, fontWeight: 800 }}>
                   {format(day, 'd', { locale: es })}{holiday && ' 🎉'}
                 </span>
                 {count > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-                    <div style={{ background: '#ec4899', color: 'white', borderRadius: 12, padding: '2px 6px', fontSize: 11, fontWeight: 700 }}>📚 {count}</div>
-                    {studentsCount > 0 && (
-                      <div style={{ background: '#7c3aed', color: 'white', borderRadius: 10, padding: '2px 6px', fontSize: 9, fontWeight: 600 }}>👥 {studentsCount}</div>
-                    )}
+                    <span style={{ background: '#ec4899', color: 'white', borderRadius: 12, ...badge1, fontWeight: 700 }}>📚 {count}</span>
+                    {students > 0 && <span style={{ background: '#7c3aed', color: 'white', borderRadius: 10, ...badge2, fontWeight: 600 }}>👥 {students}</span>}
                   </div>
                 )}
               </div>

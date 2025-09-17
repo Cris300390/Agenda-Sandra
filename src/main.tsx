@@ -1,6 +1,7 @@
 // src/main.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { ToastProvider } from './ui/Toast'
 
@@ -8,10 +9,15 @@ import { ToastProvider } from './ui/Toast'
 import './index.css'
 import './App.css'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')!
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
+    {/* HashRouter evita 404 en GitHub Pages */}
+    <HashRouter>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </HashRouter>
   </React.StrictMode>
 )
