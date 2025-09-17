@@ -70,3 +70,5 @@ export default tseslint.config([
 ## Flujo de trabajo
 - Rama de trabajo: dev-sandra
 - No se toca main directamente. Siempre PR de dev-sandra → main.
+
+Trigger deploy 09/17/2025 14:22:43
