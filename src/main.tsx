@@ -9,9 +9,10 @@ import { ToastProvider } from './ui/Toast'
 import './index.css'
 import './App.css'
 
-const root = document.getElementById('root')!
+// Montaje raíz
+const rootEl = document.getElementById('root')!
 
-ReactDOM.createRoot(root).render(
+ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     {/* HashRouter evita 404 en GitHub Pages */}
     <HashRouter>
@@ -21,3 +22,4 @@ ReactDOM.createRoot(root).render(
     </HashRouter>
   </React.StrictMode>
 )
+

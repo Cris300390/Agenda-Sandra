@@ -1,376 +1,459 @@
-import { useEffect, useMemo, useState } from 'react'
-import { format, getYear } from 'date-fns'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  addDays,
+  endOfDay,
+  endOfMonth,
+  endOfYear,
+  format,
+  getHours,
+  getMonth,
+  getYear,
+  isAfter,
+  isBefore,
+  isSameDay,
+  isSameYear,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfYear
+} from 'date-fns'
 import { es } from 'date-fns/locale'
 import { db } from '../db'
 
-/* ================== Config ================== */
-const START_HOUR = 16 // 16,17,18,19,20,21
-const END_HOUR = 22   // no incluido
-
-/* ================== Tipos ================== */
-type Clase = {
+type Cls = {
   id?: number
   studentId?: number
   title?: string
-  start: string // ISO
-  end: string   // ISO
+  start: string
+  end: string
 }
-type StudentAny = {
+
+type Student = {
   id?: number
   name: string
   color?: string
-  // cualquier posible nombre de tarifa que puedas tener en tu BD
-  rate?: number
-  hourlyRate?: number
+  // cualquiera de estos nombres según tu modelo
   pricePerHour?: number
-  price?: number
-  tarifa?: number
-  [key: string]: any
+  hourlyRate?: number
+  rate?: number
+  tarifaHora?: number
+  precioHora?: number
 }
 
-/* ================== Estilos de tabla ================== */
-const thStyle: React.CSSProperties = {
-  textAlign: 'left', padding: '10px 8px', color: '#334155', fontWeight: 800, fontSize: 12
+function money(n: number) {
+  try {
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(n || 0)
+  } catch {
+    return `${(n || 0).toFixed(2)} €`
+  }
 }
-const tdStyle: React.CSSProperties = {
-  padding: '10px 8px', color: '#475569', fontSize: 13
-}
+function two(n: number) { return String(n).padStart(2, '0') }
 
-/* ================== Utilidades ================== */
-const monthNames: string[] = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
-
-function useIsMobile(max = 480): boolean {
-  const [isMobile, setIsMobile] = useState<boolean>(() =>
-    typeof window !== 'undefined'
-      ? window.matchMedia(`(max-width:${max}px)`).matches
-      : true
-  )
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width:${max}px)`)
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [max])
-  return isMobile
-}
-
-function hoursOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
-  return aStart < bEnd && aEnd > bStart
-}
-function getStudentRate(s?: StudentAny): number {
+function getRate(s?: Student | null) {
   if (!s) return 0
-  const n = Number(s.rate ?? s.hourlyRate ?? s.pricePerHour ?? s.price ?? s.tarifa ?? 0)
-  return isNaN(n) ? 0 : n
-}
-
-/* ================== UI Helpers ================== */
-function Card(props: { title: string; children: React.ReactNode; gradient?: string }) {
-  const { title, children, gradient } = props
   return (
-    <div style={{ background: 'white', borderRadius: 16, padding: 12, boxShadow: '0 6px 16px rgba(0,0,0,.06)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <strong style={{ color: '#334155' }}>{title}</strong>
-        {gradient && <span style={{ width: 48, height: 6, borderRadius: 9999, background: gradient }} />}
-      </div>
-      {children}
-    </div>
+    s.pricePerHour ??
+    s.hourlyRate ??
+    s.rate ??
+    s.tarifaHora ??
+    s.precioHora ??
+    0
   )
 }
 
-function SimpleBarChart(props: {
-  data: { label: string; value: number; color?: string }[]
-  height?: number
-  maxValue?: number
-  yFormat?: (v: number) => string
-  compactLabels?: boolean
-}) {
-  const { data, height = 140, maxValue, yFormat = (v) => v.toString(), compactLabels = false } = props
-  const H = height
-  const max = maxValue ?? Math.max(1, ...data.map(d => d.value))
-  const barW = Math.max(18, Math.floor(320 / Math.max(1, data.length)))
-  const gap = 8
-  const W = data.length * (barW + gap) + gap
+const H_START = 16
+const H_END_EXC = 22 // [16..21]
 
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <svg width={W} height={H + 36} role="img" aria-label="bar chart">
-        <line x1={0} y1={H} x2={W} y2={H} stroke="#e5e7eb" />
-        {data.map((d, i) => {
-          const x = i * (barW + gap) + gap
-          const h = max === 0 ? 0 : Math.round((d.value / max) * (H - 20))
-          const y = H - h
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={barW} height={h} rx={8} ry={8} fill={d.color || 'url(#gradDefault)'} />
-              <text x={x + barW / 2} y={H + 14} textAnchor="middle" fontSize="10" fill="#64748b">
-                {compactLabels ? (d.label.length > 3 ? d.label.slice(0, 3) : d.label) : d.label}
-              </text>
-              <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize="10" fill="#334155">
-                {yFormat(d.value)}
-              </text>
-            </g>
-          )
-        })}
-        <defs>
-          <linearGradient id="gradDefault" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f472b6" />
-            <stop offset="100%" stopColor="#a855f7" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-  )
-}
-
-/* ================== Página: Informes ================== */
 export default function Informes() {
-  const isMobile = useIsMobile()
+  const today = new Date()
+  const [year, setYear] = useState<number>(getYear(today))
+  const [untilToday, setUntilToday] = useState<boolean>(true)
+  const [day, setDay] = useState<Date>(today)
 
-  const [classes, setClasses] = useState<Clase[]>([])
-  const [students, setStudents] = useState<StudentAny[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [classes, setClasses] = useState<Cls[]>([])
+  const [students, setStudents] = useState<Student[]>([])
 
-  // Año seleccionado (persistido)
-  const [year, setYear] = useState<number>(() => {
-    const saved = localStorage.getItem('informes.year')
-    const y = saved ? Number(saved) : new Date().getFullYear()
-    return isNaN(y) ? new Date().getFullYear() : y
-  })
-
-  // Filtro: Ignorar clases futuras (para que no “salgan horas” sin haber trabajado)
-  const [onlyPast, setOnlyPast] = useState<boolean>(() => localStorage.getItem('informes.onlyPast') !== '0')
-  useEffect(() => { localStorage.setItem('informes.onlyPast', onlyPast ? '1' : '0') }, [onlyPast])
-
-  // Cargar datos
-  const loadData = async (): Promise<void> => {
-    const cls = await db.classes.toArray()
-    const sts = await db.students.toArray()
-    setClasses(cls as Clase[])
-    setStudents(sts as StudentAny[])
+  // --------- carga ----------
+  async function reload() {
+    setLoading(true)
+    const [cls, sts] = await Promise.all([
+      db.classes.toArray(),
+      db.students.toArray()
+    ])
+    setClasses(cls)
+    setStudents(sts)
+    setLoading(false)
   }
 
-  useEffect(() => { loadData() }, [])
-
-  // Actualizar al volver a la pestaña/visibilidad
   useEffect(() => {
-    const onFocus = () => { loadData() }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onFocus)
+    reload()
+  }, [])
+
+  // auto-refresco:
+  useEffect(() => {
+    const handler = () => reload()
+    const vis = () => { if (!document.hidden) reload() }
+
+    window.addEventListener('sandra:db-changed', handler as any)
+    window.addEventListener('focus', handler)
+    document.addEventListener('visibilitychange', vis)
+    const iv = setInterval(handler, 60000) // respaldo cada 60s
+
     return () => {
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onFocus)
+      window.removeEventListener('sandra:db-changed', handler as any)
+      window.removeEventListener('focus', handler)
+      document.removeEventListener('visibilitychange', vis)
+      clearInterval(iv)
     }
   }, [])
 
-  // Guardar año
-  useEffect(() => { localStorage.setItem('informes.year', String(year)) }, [year])
+  // --------- filtros por año / hasta hoy ----------
+  const periodStart = useMemo(() => startOfYear(new Date(year, 0, 1)), [year])
+  const periodEnd = useMemo(() => endOfYear(new Date(year, 0, 1)), [year])
 
-  // Rango de años amplio (datos ± extra)
-  const yearsAvailable: number[] = useMemo(() => {
-    const list: number[] = classes.map(c => getYear(new Date(c.start)))
-    const now = new Date().getFullYear()
-    let minY = list.length ? Math.min(...list) : now
-    let maxY = list.length ? Math.max(...list) : now
-    minY = Math.min(minY, now - 3)
-    maxY = Math.max(maxY, now + 10)
-    const arr: number[] = []
-    for (let y = minY; y <= maxY; y++) arr.push(y)
-    return arr
-  }, [classes])
-
-  /* ====== Cálculos ====== */
-  type Metrics = {
-    ingresosPorMes: number[]
-    horasPorMes: number[]
-    topAlumnos: { name: string; color?: string; total: number }[]
-    resumenMensual: { mes: string; clases: number; horas: number; ingresos: number }[]
-    totalAnualIngresos: number
-    totalAnualHoras: number
-    totalAnualClases: number
-  }
-
-  const metrics: Metrics = useMemo<Metrics>(() => {
-    const eurosMes: number[] = Array(12).fill(0)
-    const horasMes: number[] = Array(12).fill(0)
-    const clasesMes: number[] = Array(12).fill(0)
-    const slotsPorMes: Array<Set<string>> = Array.from({ length: 12 }, () => new Set<string>())
-    const ingresosPorAlumno = new Map<number, { name: string; color?: string; total: number }>()
-    const stById = new Map<number, StudentAny>(students.map(s => [s.id!, s]))
-    const today = new Date()
+  const dataYear = useMemo(() => {
+    const now = new Date()
+    const filtered: { c: Cls; s?: Student | null; start: Date; end: Date }[] = []
 
     for (const c of classes) {
-      const sDate = new Date(c.start)
-      const eDate = new Date(c.end)
-      if (getYear(sDate) !== year) continue
-      if (onlyPast && eDate > today) continue
+      const s = students.find(st => st.id === c.studentId) || null
+      const sd = parseISO(c.start)
+      const ed = parseISO(c.end)
 
-      const m = sDate.getMonth()
-      clasesMes[m] += 1
+      if (!isSameYear(sd, periodStart)) continue // por start
+      if (untilToday && isAfter(sd, now)) continue
 
-      const st = c.studentId ? stById.get(c.studentId) : undefined
-      const rate = getStudentRate(st)
-      const durH = Math.max(0, (eDate.getTime() - sDate.getTime()) / 36e5)
-      eurosMes[m] += rate * durH
+      filtered.push({ c, s, start: sd, end: ed })
+    }
+    return filtered
+  }, [classes, students, periodStart, untilToday])
 
-      if (st) {
-        const prev = ingresosPorAlumno.get(st.id!) || { name: st.name, color: st.color, total: 0 }
-        prev.total += rate * durH
-        ingresosPorAlumno.set(st.id!, prev)
+  // --------- agregados por mes ----------
+  const ingresosPorMes = useMemo(() => {
+    const arr = Array(12).fill(0) as number[]
+    for (const { s, start, end } of dataYear) {
+      const m = getMonth(start)
+      const hours = (end.getTime() - start.getTime()) / 3_600_000
+      const eur = hours * getRate(s || undefined)
+      arr[m] += isNaN(eur) ? 0 : eur
+    }
+    return arr
+  }, [dataYear])
+
+  const horasPorMes = useMemo(() => {
+    // cuenta franjas únicas 16..21 por día
+    const arr = Array(12).fill(0) as number[]
+    const marksByDay = new Map<string, Set<number>>()
+
+    for (const { start, end } of dataYear) {
+      const key = start.toDateString()
+      if (!marksByDay.has(key)) marksByDay.set(key, new Set<number>())
+      const hoursSet = marksByDay.get(key)!
+      for (let h = H_START; h < H_END_EXC; h++) {
+        const slotStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h, 0, 0)
+        const slotEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h + 1, 0, 0)
+        if (start < slotEnd && end > slotStart) hoursSet.add(h)
       }
+    }
 
-      // Horas únicas por franja (16..21)
-      for (let h = START_HOUR; h < END_HOUR; h++) {
-        const slotStart = new Date(sDate.getFullYear(), sDate.getMonth(), sDate.getDate(), h, 0, 0, 0)
-        const slotEnd = new Date(sDate.getFullYear(), sDate.getMonth(), sDate.getDate(), h + 1, 0, 0, 0)
-        if (hoursOverlap(sDate, eDate, slotStart, slotEnd)) {
-          const key = `${sDate.getFullYear()}-${String(sDate.getMonth() + 1).padStart(2, '0')}-${String(sDate.getDate()).padStart(2, '0')}|${h}`
-          slotsPorMes[m].add(key)
+    for (const key of marksByDay.keys()) {
+      const d = new Date(key)
+      const m = d.getMonth()
+      arr[m] += marksByDay.get(key)!.size
+    }
+    return arr
+  }, [dataYear])
+
+  const totalClases = dataYear.length
+  const totalHoras = horasPorMes.reduce((a, b) => a + b, 0)
+  const totalEur = ingresosPorMes.reduce((a, b) => a + b, 0)
+
+  // --------- ranking alumnos ----------
+  const topAlumnos = useMemo(() => {
+    const map = new Map<number, { name: string; total: number }>()
+    for (const { c, s, start, end } of dataYear) {
+      if (!c.studentId) continue
+      const hours = (end.getTime() - start.getTime()) / 3_600_000
+      const eur = hours * getRate(s || undefined)
+      const cur = map.get(c.studentId) || { name: s?.name || 'Alumno', total: 0 }
+      cur.total += isNaN(eur) ? 0 : eur
+      map.set(c.studentId, cur)
+    }
+    const arr = Array.from(map.entries()).map(([id, v]) => ({ id, ...v }))
+    arr.sort((a, b) => b.total - a.total)
+    return arr.slice(0, 8)
+  }, [dataYear])
+
+  // --------- resumen mensual (tabla) ----------
+  const resumenMeses = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, m) => {
+      const start = startOfMonth(new Date(year, m, 1))
+      let classesCount = 0
+      let hours = 0
+      let euros = 0
+      const marksByDay = new Map<string, Set<number>>()
+
+      for (const { s, start: sd, end: ed } of dataYear) {
+        if (getMonth(sd) !== m) continue
+        classesCount++
+        // euros
+        const hs = ( ed.getTime() - sd.getTime() ) / 3_600_000
+        euros += (isNaN(hs) ? 0 : hs) * getRate(s || undefined)
+
+        // horas por franjas 16..21 únicas por día
+        const key = sd.toDateString()
+        if (!marksByDay.has(key)) marksByDay.set(key, new Set<number>())
+        const set = marksByDay.get(key)!
+        for (let h = H_START; h < H_END_EXC; h++) {
+          const slotStart = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate(), h, 0, 0)
+          const slotEnd = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate(), h + 1, 0, 0)
+          if (sd < slotEnd && ed > slotStart) set.add(h)
         }
       }
+
+      for (const k of marksByDay.keys()) hours += marksByDay.get(k)!.size
+
+      return {
+        mes: format(start, 'MMM', { locale: es }),
+        classes: classesCount,
+        horas: hours,
+        euros
+      }
+    })
+    return months
+  }, [dataYear, year])
+
+  // --------- resumen del día ----------
+  const daySummary = useMemo(() => {
+    const list = dataYear.filter(e => isSameDay(e.start, day))
+    const byHour = new Set<number>()
+    let euros = 0
+
+    for (const { s, start, end } of list) {
+      const hs = (end.getTime() - start.getTime()) / 3_600_000
+      euros += (isNaN(hs) ? 0 : hs) * getRate(s || undefined)
+      for (let h = H_START; h < H_END_EXC; h++) {
+        const slotStart = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h, 0, 0)
+        const slotEnd = new Date(start.getFullYear(), start.getMonth(), start.getDate(), h + 1, 0, 0)
+        if (start < slotEnd && end > slotStart) byHour.add(h)
+      }
     }
-
-    for (let i = 0; i < 12; i++) horasMes[i] = slotsPorMes[i].size
-
-    const topAlumnosArr = Array.from(ingresosPorAlumno.values()).sort((a, b) => b.total - a.total)
-    const resumenMensualArr = monthNames.map((mes, i) => ({
-      mes,
-      clases: clasesMes[i],
-      horas: horasMes[i],
-      ingresos: eurosMes[i]
-    }))
-
-    const totalAnualIngresos = eurosMes.reduce((a: number, b: number) => a + b, 0)
-    const totalAnualHoras = horasMes.reduce((a: number, b: number) => a + b, 0)
-    const totalAnualClases = clasesMes.reduce((a: number, b: number) => a + b, 0)
 
     return {
-      ingresosPorMes: eurosMes,
-      horasPorMes: horasMes,
-      topAlumnos: topAlumnosArr,
-      resumenMensual: resumenMensualArr,
-      totalAnualIngresos,
-      totalAnualHoras,
-      totalAnualClases
+      clases: list.length,
+      horas: byHour.size,
+      euros,
+      list
     }
-  }, [classes, students, year, onlyPast])
+  }, [dataYear, day])
 
-  const {
-    ingresosPorMes, horasPorMes, topAlumnos,
-    resumenMensual, totalAnualIngresos, totalAnualHoras, totalAnualClases
-  } = metrics
-
-  /* ====== Marco ====== */
-  const frameStyle = isMobile
-    ? { maxWidth: '100%', margin: 0, background: 'transparent', borderRadius: 0, boxShadow: 'none' as const }
-    : { maxWidth: '1200px', margin: '0 auto', background: 'rgba(255,255,255,0.98)', borderRadius: 20, boxShadow: '0 10px 40px rgba(0,0,0,.06)' }
+  // --------- UI ----------
+  const yearOptions = useMemo(() => {
+    const minY = Math.min(year, getYear(new Date()) - 3)
+    const maxY = Math.max(year, getYear(new Date()) + 3)
+    const res: number[] = []
+    for (let y = minY; y <= maxY; y++) res.push(y)
+    return res
+  }, [year])
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#fbcfe8 100%)',
-      minHeight: '100dvh',
-      padding: isMobile ? '8px' : '20px',
-      fontFamily: "'Inter','Segoe UI',system-ui,sans-serif"
-    }}>
-      <div style={frameStyle}>
-        {/* Cabecera */}
-        <div style={{
-          padding: isMobile ? '8px 10px' : '18px 24px',
-          background: isMobile ? 'transparent' : 'linear-gradient(135deg,#f472b6,#ec4899)',
-          color: isMobile ? '#be185d' : 'white',
-          borderRadius: isMobile ? 0 : '20px 20px 0 0'
-        }}>
-          <h1 style={{ margin: 0, fontWeight: 800, fontSize: isMobile ? 24 : 34 }}>Informes</h1>
-        </div>
+    <div style={{ paddingBottom: 24 }}>
+      {/* Filtros + KPIs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <label style={{ fontWeight: 700 }}>Año:</label>
+          <select value={year} onChange={e => setYear(Number(e.target.value))}>
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
 
-        {/* Controles */}
-        <div style={{ padding: isMobile ? '10px 8px' : 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: '#334155', fontWeight: 700 }}>Año:</span>
-            <select value={year} onChange={(e) => setYear(Number(e.target.value))} style={{ padding: '6px 8px', borderRadius: 8 }}>
-              {yearsAvailable.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="checkbox" checked={onlyPast} onChange={(e) => setOnlyPast(e.target.checked)} />
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" checked={untilToday} onChange={e => setUntilToday(e.target.checked)} />
             Solo hasta hoy
           </label>
-
-          <button onClick={() => loadData()} style={{ marginLeft: 'auto' }}>Refrescar</button>
-
-          <div style={{ display: 'flex', gap: 8, color: '#334155' }}>
-            <span>📚 {totalAnualClases} clases</span>
-            <span>⏱️ {totalAnualHoras} h</span>
-            <span>💶 {totalAnualIngresos.toFixed(2)} €</span>
-          </div>
         </div>
 
-        {/* Gráficos */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,minmax(0,1fr))', gap: 12, padding: isMobile ? '0 8px 12px' : '0 16px 16px' }}>
-          <Card title="💶 Ingresos por mes" gradient="linear-gradient(90deg,#f472b6,#a855f7)">
-            <SimpleBarChart
-              data={monthNames.map((m, i) => ({ label: m, value: ingresosPorMes[i] }))}
-              yFormat={(v) => `${v.toFixed(0)}€`}
-              compactLabels={true}
-            />
-          </Card>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={reload}>Refrescar</button>
+          <span>📚 {totalClases} clases</span>
+          <span>⏱ {totalHoras} h</span>
+          <span>💶 {money(totalEur)}</span>
+        </div>
+      </div>
 
-          <Card title="⏱️ Horas realizadas por mes (16–22)" gradient="linear-gradient(90deg,#22c55e,#06b6d4)">
-            <SimpleBarChart
-              data={monthNames.map((m, i) => ({ label: m, value: horasPorMes[i] }))}
-              yFormat={(v) => `${v.toFixed(0)}h`}
-              compactLabels={true}
-            />
-          </Card>
+      {/* Gráficas */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 16 }}>
+        <Card title="📈 Ingresos por mes">
+          <Bars values={ingresosPorMes} fmt={money} />
+        </Card>
 
-          <div style={{ gridColumn: isMobile ? 'auto' : '1 / span 2' }}>
-            <Card title="🏆 Alumnos con más ingresos" gradient="linear-gradient(90deg,#f59e0b,#ef4444)">
-              <SimpleBarChart
-                data={topAlumnos.map(a => ({ label: a.name, value: a.total }))}
-                yFormat={(v) => `${v.toFixed(0)}€`}
-              />
-              {topAlumnos.length === 0 && (
-                <div style={{ color: '#64748b', fontSize: 12, marginTop: 8 }}>
-                  Sin datos de ingresos. Asegúrate de poner una <b>tarifa por hora</b> en cada alumno.
+        <Card title="⏱ Horas realizadas por mes (16–22)">
+          <Bars values={horasPorMes} fmt={(v) => `${v}h`} color="#10b981" />
+        </Card>
+      </div>
+
+      {/* Top alumnos */}
+      <div style={{ marginTop: 20 }}>
+        <Card title="🏆 Alumnos con más ingresos">
+          {topAlumnos.length === 0 ? (
+            <div style={{ color: '#64748b' }}>Sin datos de ingresos. Asegúrate de asignar <strong>Tarifa por hora</strong> a tus alumnos y de tener clases en este año.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {topAlumnos.map((a, i) => (
+                <div key={a.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontWeight: 700 }}>{i + 1}. {a.name}</div>
+                    <div style={{ height: 8, background: '#f1f5f9', borderRadius: 8, overflow: 'hidden' }}>
+                      <div style={{ width: `${(a.total / (topAlumnos[0].total || 1)) * 100}%`, height: '100%', background: '#f59e0b' }} />
+                    </div>
+                  </div>
+                  <div style={{ fontWeight: 700 }}>{money(a.total)}</div>
                 </div>
-              )}
-            </Card>
-          </div>
-        </div>
-
-        {/* Resumen mensual */}
-        <div style={{ padding: isMobile ? '0 8px 20px' : '0 16px 24px' }}>
-          <Card title="📅 Resumen de todos los meses" gradient="linear-gradient(90deg,#94a3b8,#334155)">
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc' }}>
-                    <th style={thStyle}>Mes</th>
-                    <th style={thStyle}>Clases</th>
-                    <th style={thStyle}>Horas</th>
-                    <th style={thStyle}>Ingresos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {resumenMensual.map((r, idx) => (
-                    <tr key={idx} style={{ borderTop: '1px solid #e5e7eb' }}>
-                      <td style={tdStyle}>{r.mes}</td>
-                      <td style={tdStyle}>{r.clases}</td>
-                      <td style={tdStyle}>{r.horas}</td>
-                      <td style={tdStyle}>{r.ingresos.toFixed(2)} €</td>
-                    </tr>
-                  ))}
-                  <tr style={{ borderTop: '2px solid #cbd5e1', background: '#f8fafc' }}>
-                    <td style={{ ...tdStyle, fontWeight: 800 }}>Total {year}</td>
-                    <td style={{ ...tdStyle, fontWeight: 800 }}>{resumenMensual.reduce((acc, r) => acc + r.clases, 0)}</td>
-                    <td style={{ ...tdStyle, fontWeight: 800 }}>{resumenMensual.reduce((acc, r) => acc + r.horas, 0)}</td>
-                    <td style={{ ...tdStyle, fontWeight: 800 }}>{resumenMensual.reduce((acc, r) => acc + r.ingresos, 0).toFixed(2)} €</td>
-                  </tr>
-                </tbody>
-              </table>
+              ))}
             </div>
-          </Card>
-        </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Resumen meses */}
+      <div style={{ marginTop: 20 }}>
+        <Card title="📋 Resumen de todos los meses">
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+            <thead>
+              <tr>
+                <th style={th}>Mes</th>
+                <th style={th}>Clases</th>
+                <th style={th}>Horas</th>
+                <th style={th}>Ingresos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {resumenMeses.map((r, idx) => (
+                <tr key={idx}>
+                  <td style={td}>{r.mes}</td>
+                  <td style={td}>{r.classes}</td>
+                  <td style={td}>{r.horas}</td>
+                  <td style={td}>{money(r.euros)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+
+      {/* --------- Resumen del día --------- */}
+      <div style={{ marginTop: 20 }}>
+        <Card title={`📆 Resumen del día — ${format(day, "EEEE d 'de' MMMM", { locale: es })}`}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <button onClick={() => setDay(addDays(day, -1))}>← Anterior</button>
+            <button onClick={() => setDay(new Date())}>🏠 Hoy</button>
+            <button onClick={() => setDay(addDays(day, +1))}>Siguiente →</button>
+            <input
+              type="date"
+              value={`${day.getFullYear()}-${two(day.getMonth() + 1)}-${two(day.getDate())}`}
+              onChange={(e) => {
+                const [y, m, d] = e.target.value.split('-').map(Number)
+                setDay(new Date(y, m - 1, d))
+              }}
+            />
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, fontWeight: 700 }}>
+              <span>📚 {daySummary.clases} clases</span>
+              <span>⏱ {daySummary.horas} h</span>
+              <span>💶 {money(daySummary.euros)}</span>
+            </div>
+          </div>
+
+          {daySummary.list.length === 0 ? (
+            <div style={{ color: '#64748b' }}>No hay clases en este día.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+              <thead>
+                <tr>
+                  <th style={th}>Hora</th>
+                  <th style={th}>Alumno</th>
+                  <th style={th}>Duración</th>
+                  <th style={th}>Ingresos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {daySummary.list
+                  .slice()
+                  .sort((a, b) => a.start.getTime() - b.start.getTime())
+                  .map(({ c, s, start, end }, i) => {
+                    const mins = Math.round((end.getTime() - start.getTime()) / 60000)
+                    const eur = (mins / 60) * getRate(s || undefined)
+                    return (
+                      <tr key={i}>
+                        <td style={td}>{two(start.getHours())}:{two(start.getMinutes())}</td>
+                        <td style={td}>{s?.name || 'Alumno'}</td>
+                        <td style={td}>{mins} min</td>
+                        <td style={td}>{money(eur)}</td>
+                      </tr>
+                    )
+                  })}
+              </tbody>
+            </table>
+          )}
+        </Card>
       </div>
     </div>
   )
+}
+
+/* ---------- Componentes pequeños ---------- */
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{
+      background: 'white',
+      borderRadius: 16,
+      border: '1px solid #e5e7eb',
+      padding: 16,
+      boxShadow: '0 6px 20px rgba(0,0,0,.04)'
+    }}>
+      <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: 10 }}>{title}</div>
+      {children}
+    </section>
+  )
+}
+
+/** Mini-barras mensuales (12 columnas) */
+function Bars({ values, fmt, color }: { values: number[]; fmt: (v: number) => string; color?: string }) {
+  const max = Math.max(1, ...values)
+  const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12,1fr)', gap: 6, alignItems: 'end', height: 120 }}>
+        {values.map((v, i) => (
+          <div key={i} title={`${months[i]}: ${fmt(v)}`} style={{ display: 'grid', gap: 4, alignItems: 'end' }}>
+            <div style={{
+              height: `${(v / max) * 100}%`,
+              background: color ?? 'linear-gradient(180deg,#ec4899,#ef5aa5)',
+              borderRadius: 6
+            }} />
+            <div style={{ textAlign: 'center', fontSize: 11, color: '#64748b' }}>{months[i]}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(12,1fr)', gap: 6, fontSize: 12, color: '#64748b' }}>
+        {values.map((v, i) => (
+          <div key={i} style={{ textAlign: 'center' }}>{fmt(v)}</div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* estilos table */
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  fontWeight: 800,
+  color: '#0f172a',
+  padding: '8px 10px',
+  borderBottom: '1px solid #e5e7eb'
+}
+const td: React.CSSProperties = {
+  padding: '8px 10px',
+  borderBottom: '1px dashed #e5e7eb'
 }
