@@ -15,6 +15,30 @@ type DayRow = {
 const eur = (n: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n ?? 0)
 
+// ---- Helpers robustos ----
+function asDate(v: any): Date | null {
+  if (!v) return null
+  if (v instanceof Date && !isNaN(+v)) return v
+  if (typeof v === 'number') return new Date(v)
+  if (typeof v === 'string') {
+    // Soporta 'YYYY-MM-DD' y ISO con/ sin Z
+    const d = parseISO(v)
+    return isNaN(+d) ? null : d
+  }
+  return null
+}
+function num(v: any): number {
+  const n = typeof v === 'string' ? Number(v.replace(',', '.')) : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+function sidOf(v: any): number | null {
+  const n = num(v)
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+function inRange(d: Date, start: Date, end: Date) {
+  return d >= start && d <= end
+}
+
 export default function Informes() {
   const [date, setDate] = useState<Date>(() => new Date())
   const [rows, setRows] = useState<DayRow[]>([])
@@ -25,7 +49,6 @@ export default function Informes() {
     const end = endOfDay(date)
     const anyDb = db as any
 
-    // Suscripción reactiva: si cambian clases, alumnos, pagos o movimientos → recalculamos
     const sub = liveQuery(async () => {
       const [classes, students] = await Promise.all([
         db.classes.toArray(),
@@ -36,41 +59,44 @@ export default function Informes() {
       return { classes, students, movs, pays }
     }).subscribe({
       next: ({ classes, students, movs, pays }) => {
-        // 1) Filtrar clases del día (que no estén canceladas/noShow)
+        // 1) Clases del día (activas)
         const classesToday = classes.filter((c: any) => {
           const s = parseISO(c.start)
           return s >= start && s <= end && !c.canceled && !c.noShow
         })
 
-        // 2) Calcular pagos del día por rango (robusto con zona horaria)
+        // 2) Normalizamos pagos de movements y payments y sumamos por alumno
         let paymentsToday = 0
         const paymentsByStudent: Record<number, number> = {}
-        const addPayment = (studentId: number | undefined, rawAmount: any, rawDate: any) => {
-          if (!rawDate) return
-          const d = typeof rawDate === 'string' ? parseISO(rawDate) : new Date(rawDate)
-          if (d < start || d > end) return
-          const amount = Number(rawAmount) || 0
+
+        const addPayment = (studentId: any, amountRaw: any, dateRaw: any) => {
+          const d = asDate(dateRaw)
+          if (!d || !inRange(d, start, end)) return
+          const amount = num(amountRaw)
+          if (!amount) return
           paymentsToday += amount
-          const sid = typeof studentId === 'number' ? studentId : -1
-          if (sid > -1) paymentsByStudent[sid] = (paymentsByStudent[sid] ?? 0) + amount
+          const sid = sidOf(studentId)
+          if (sid !== null) paymentsByStudent[sid] = (paymentsByStudent[sid] ?? 0) + amount
         }
 
-        // movements (nueva)
+        // movements: aceptamos type === 'payment' o registros con amount>0
         movs.forEach((m: any) => {
-          if (m?.type === 'payment') addPayment(m.studentId, m.amount, m.date)
+          if (m?.type && m.type !== 'payment') return
+          addPayment(m?.studentId, m?.amount ?? m?.value, m?.date ?? m?.paidAt ?? m?.createdAt ?? m?.timestamp)
         })
-        // payments (legacy) solo si no hubo en movements
-        if (paymentsToday === 0) {
-          pays.forEach((p: any) => addPayment(p.studentId, p.amount, p.date))
-        }
+        // payments (legacy)
+        pays.forEach((p: any) => {
+          addPayment(p?.studentId, p?.amount ?? p?.value, p?.date ?? p?.paidAt ?? p?.createdAt ?? p?.timestamp)
+        })
 
-        // 3) Filas para la tabla del día
+        // 3) Filas del día
         const rowsBuilt: DayRow[] = classesToday.map((cls: any) => {
           const st = students.find((s: any) => s.id === cls.studentId)
           const startD = parseISO(cls.start)
           const endD = parseISO(cls.end)
           const durationMin = Math.max(0, Math.round((+endD - +startD) / 60000))
-          const incomeForStudent = paymentsByStudent[cls.studentId!] ?? 0
+          const sid = sidOf(cls.studentId)
+          const incomeForStudent = sid !== null ? paymentsByStudent[sid] ?? 0 : 0
 
           return {
             hour: format(startD, 'HH:mm', { locale: es }),
