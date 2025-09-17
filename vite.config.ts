@@ -2,9 +2,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Fuerza 5185 tanto en dev como en preview
+// Base para GitHub Pages (repo: /Agenda-Sandra/)
+// y puerto 5185 fijo en local (dev/preview)
 export default defineConfig({
   plugins: [react()],
+  base: '/Agenda-Sandra/',
   server: {
     host: '0.0.0.0',
     port: 5185,
@@ -16,4 +18,5 @@ export default defineConfig({
     strictPort: true,
   },
 })
+
 
