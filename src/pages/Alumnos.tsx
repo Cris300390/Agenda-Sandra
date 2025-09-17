@@ -34,6 +34,13 @@ export default function AlumnosPage() {
   }
   useEffect(() => { load() }, [])
 
+  // Bloquea scroll del fondo al abrir el modal
+  useEffect(() => {
+    if (openForm) document.body.classList.add('body-lock')
+    else document.body.classList.remove('body-lock')
+    return () => document.body.classList.remove('body-lock')
+  }, [openForm])
+
   const counts = useMemo(() => {
     const total = all.length
     const activos = all.filter(s => isActive(s)).length
@@ -149,7 +156,7 @@ export default function AlumnosPage() {
         name,
         active: fActive,
         isActive: fActive,
-        subjects,                               // permitimos []
+        subjects,
         phone: phone || undefined,
         contact: contact || undefined,
         price: priceNum ?? undefined,
@@ -163,7 +170,7 @@ export default function AlumnosPage() {
         name,
         active: fActive,
         isActive: fActive,
-        subjects,                               // permitimos []
+        subjects,
         createdAt: new Date().toISOString(),
         ...(phone ? { phone } : {}),
         ...(contact ? { contact } : {}),
@@ -233,9 +240,23 @@ export default function AlumnosPage() {
 
     .actions { display:flex; gap:8px; flex-wrap:wrap; }
 
-    /* Modal */
-    .backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.25); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); z-index:9998; }
-    .modal{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(720px, 92vw); background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 25px 50px rgba(0,0,0,.25); z-index:9999; display:grid; gap:12px; }
+    /* Modal SIEMPRE por encima */
+    .backdrop{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.25);
+      -webkit-backdrop-filter: blur(2px);
+      backdrop-filter: blur(2px);
+      z-index:10020;                 /* antes 9998 */
+    }
+    .modal{
+      position:fixed; left:50%; top:50%;
+      transform:translate(-50%,-50%);
+      width:min(720px, 92vw);
+      background:#fff; border:1px solid #eee; border-radius:16px;
+      padding:16px; box-shadow:0 25px 50px rgba(0,0,0,.25);
+      z-index:10030;                 /* antes 9999 */
+      display:grid; gap:12px;
+    }
     .form-grid{ display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
     .form-grid .full{ grid-column: 1 / -1; }
     .field{ display:grid; gap:6px; }
