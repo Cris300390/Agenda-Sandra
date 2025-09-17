@@ -72,3 +72,5 @@ export default tseslint.config([
 - No se toca main directamente. Siempre PR de dev-sandra → main.
 
 Trigger deploy 09/17/2025 14:22:43
+
+Trigger deploy 09/17/2025 14:38:33
