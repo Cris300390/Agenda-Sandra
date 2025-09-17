@@ -2,29 +2,24 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-
-    <!-- Ajuste móvil + notch (iPhone, Android) -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-
-    <!-- Colores barra navegador / PWA -->
     <meta name="theme-color" content="#ec4899" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <title>Agenda Sandra</title>
 
-    <!-- Icono por defecto de Vite (puedes cambiarlo cuando quieras) -->
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- 👇 Muy importante para GitHub Pages (Vite lo reescribe a /Agenda-Sandra/...) -->
+    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+    <link rel="icon" href="%BASE_URL%icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%icons/ios-180.png" sizes="180x180" />
   </head>
   <body>
     <div id="root"></div>
 
-    <!-- Punto de entrada de Vite/React -->
+    <!-- Entrada de la app (Vite lo transforma a /Agenda-Sandra/assets/...) -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-
 
