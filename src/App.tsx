@@ -1,54 +1,32 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, NavLink } from 'react-router-dom'
+
+// Páginas (ajusta rutas si la carpeta difiere)
 import Agenda from './pages/Agenda'
 import Alumnos from './pages/Alumnos'
-import PagosPage from './pages/Pagos'
-import InformesPage from './pages/Informes'
+import Pagos from './pages/Pagos'
+import Informes from './pages/Informes'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <div className="app">
-        <header className="topbar topbar--center">
-          {/* Título nuevo arriba de los botones */}
-          <h1 className="logo">Las clases de Sandra</h1>
+    <div>
+      {/* Nav opcional (si ya lo tienes en otro sitio, puedes quitar esto) */}
+      {/* <nav>
+        <NavLink to="/">Agenda</NavLink>
+        <NavLink to="/alumnos">Alumnos</NavLink>
+        <NavLink to="/pagos">Pagos</NavLink>
+        <NavLink to="/informes">Informes</NavLink>
+      </nav> */}
 
-          {/* Menú centrado con 4 botones; Agenda va primero */}
-          <nav className="nav nav--center">
-            <NavItem to="/agenda" text="Agenda" />
-            <NavItem to="/alumnos" text="Alumnos" />
-            <NavItem to="/pagos" text="Pagos" />
-            <NavItem to="/informes" text="Informes" />
-          </nav>
-        </header>
-
-        <main className="content">
-          <Routes>
-            {/* Ruta por defecto: que se vea Agenda primero */}
-            <Route path="/" element={<Navigate to="/agenda" replace />} />
-            <Route path="/agenda" element={<Agenda />} />
-            <Route path="/alumnos" element={<Alumnos />} />
-            <Route path="/pagos" element={<PagosPage />} />
-            <Route path="/informes" element={<InformesPage />} />
-            {/* Cualquier otra ruta desconocida */}
-            <Route path="*" element={<Navigate to="/agenda" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
-  )
-}
-
-function NavItem({ to, text }: { to: string; text: string }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `nav-item nav-item--pro ${isActive ? 'nav-item--active' : ''}`
-      }
-    >
-      {text}
-    </NavLink>
+      <Routes>
+        <Route path="/" element={<Agenda />} />
+        <Route path="/alumnos" element={<Alumnos />} />
+        <Route path="/pagos" element={<Pagos />} />
+        <Route path="/informes" element={<Informes />} />
+        {/* fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   )
 }
 
