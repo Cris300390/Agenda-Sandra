@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install deps
         run: npm ci
@@ -33,11 +33,24 @@ jobs:
       - name: Build
         run: npm run build
 
-      # 👇 Paso recomendado por GitHub Pages
+      # Evita que Pages/Jekyll oculte /assets
+      - name: Add .nojekyll
+        run: echo > dist/.nojekyll
+
+      # DEBUG: muestra qué vamos a publicar
+      - name: Show dist contents
+        run: |
+          echo "===== dist/index.html (primeras líneas) ====="
+          sed -n '1,120p' dist/index.html || true
+          echo "===== dist ====="
+          ls -la dist
+          echo "===== dist/assets ====="
+          ls -la dist/assets || true
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
