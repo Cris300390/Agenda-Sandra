@@ -1,27 +1,31 @@
+// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Ajuste de "base" según el comando:
-// - dev/preview => '/'
-// - build (para GitHub Pages) => '/Agenda-Sandra/'
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/Agenda-Sandra/' : '/',
-  plugins: [react()],
-<<<<<<< HEAD
-  base: '/Agenda-Sandra/',
-  server: {
-    host: '0.0.0.0',
-    port: 5185,
-    strictPort: true,
-  },
-  preview: {
-    host: '0.0.0.0',
-    port: 5185,
-    strictPort: true,
-  },
+// nombre del repo para GitHub Pages
+const repo = 'Agenda-Sandra'
+
+export default defineConfig(({ mode }) => {
+  const isProd = mode === 'production'
+
+  return {
+    plugins: [react()],
+    // En local: '/', en build para Pages: '/Agenda-Sandra/'
+    base: isProd ? `/${repo}/` : '/',
+
+    server: {
+      host: '0.0.0.0',
+      port: 5185,
+      strictPort: true,
+    },
+    preview: {
+      host: '0.0.0.0',
+      port: 5185,
+      strictPort: true,
+    },
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+    },
+  }
 })
-
-
-=======
-}))
->>>>>>> 842ad52 (style(header): fuentes y botones topnav)
