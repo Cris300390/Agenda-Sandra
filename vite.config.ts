@@ -1,11 +1,13 @@
-// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Base para GitHub Pages (repo: /Agenda-Sandra/)
-// y puerto 5185 fijo en local (dev/preview)
-export default defineConfig({
+// Ajuste de "base" según el comando:
+// - dev/preview => '/'
+// - build (para GitHub Pages) => '/Agenda-Sandra/'
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/Agenda-Sandra/' : '/',
   plugins: [react()],
+<<<<<<< HEAD
   base: '/Agenda-Sandra/',
   server: {
     host: '0.0.0.0',
@@ -20,3 +22,6 @@ export default defineConfig({
 })
 
 
+=======
+}))
+>>>>>>> 842ad52 (style(header): fuentes y botones topnav)

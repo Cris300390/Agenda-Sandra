@@ -194,8 +194,6 @@ function DayTable({
   onDeleteEvent?: () => void
   onUpdateEvent?: (evId: number, newStart: Date, newEnd: Date, studentId?: number) => void
 }) {
-  const MAX_PER_SLOT = 10
-
   const dayEvents = useMemo(() => {
     return events
       .filter(e => {
@@ -212,6 +210,7 @@ function DayTable({
     return slots
   }, [])
 
+  // 🔧 FIX: paréntesis para que TSX no confunda "as Date" con JSX.
   function eventsIn(slot: string) {
     const [hh] = slot.split(':').map(Number)
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, 0)
