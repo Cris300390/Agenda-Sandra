@@ -20,16 +20,37 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          cache: "npm"
+
       - name: Install deps
         run: npm ci
+
       - name: Build
         run: npm run build
-      - name: Upload Pages artifact
+
+      # Evita que GitHub Pages/Jekyll esconda /assets
+      - name: Add .nojekyll
+        run: echo > dist/.nojekyll
+
+      # DEBUG: mostramos qué se va a publicar
+      - name: Show dist contents
+        run: |
+          echo "===== dist/index.html (primeras líneas) ====="
+          sed -n '1,120p' dist/index.html || true
+          echo "===== dist ====="
+          ls -la dist
+          echo "===== dist/assets ====="
+          ls -la dist/assets || true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist

@@ -1,227 +1,256 @@
 // src/pages/Informes.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { db } from '../db'
-import { addDays, endOfDay, format, parseISO, startOfDay } from 'date-fns'
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  subMonths,
+  endOfMonth as eom,
+} from 'date-fns'
 import { es } from 'date-fns/locale'
-import { liveQuery } from 'dexie'
+import { db } from '../db'
 
-type DayRow = {
-  hour: string
-  studentName: string
-  durationMin: number
-  income: number
-}
-
-type DebugPay = {
-  source: 'movements' | 'payments'
-  sid: number | null
-  studentName: string
+type Movement = {
+  id?: number
+  type?: 'payment' | 'debt'
   amount: number
-  rawDate: any
-  parsed: Date | null
-  included: boolean
+  date: string
+  studentId?: number
+  note?: string
 }
 
+// Formateo €
 const eur = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n ?? 0)
+  new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+  }).format(n ?? 0)
 
-// ---- Helpers robustos ----
-function asDate(v: any): Date | null {
-  if (!v) return null
-  if (v instanceof Date && !isNaN(+v)) return v
-  if (typeof v === 'number') return new Date(v)
-  if (typeof v === 'string') {
-    const d = parseISO(v) // soporta 'YYYY-MM-DD' e ISO con/ sin Z
-    return isNaN(+d) ? null : d
-  }
-  return null
-}
-function num(v: any): number {
-  const n = typeof v === 'string' ? Number(v.replace(',', '.')) : Number(v)
-  return Number.isFinite(n) ? n : 0
-}
-function sidOf(v: any): number | null {
-  const n = Number(v)
-  return Number.isFinite(n) && n >= 0 ? n : null
-}
-function inRange(d: Date, start: Date, end: Date) {
-  return d >= start && d <= end
+/** Convierte a Date de forma segura */
+function toDate(d: string | Date): Date {
+  return d instanceof Date ? d : new Date(d)
 }
 
-export default function Informes() {
-  const [date, setDate] = useState<Date>(() => new Date())
-  const [rows, setRows] = useState<DayRow[]>([])
-  const [summary, setSummary] = useState({ classes: 0, hours: 0, income: 0 })
-  const [debugOpen, setDebugOpen] = useState(false)
-  const [debugList, setDebugList] = useState<DebugPay[]>([])
-
-  useEffect(() => {
-    const start = startOfDay(date)
-    const end = endOfDay(date)
-    const anyDb = db as any
-
-    const sub = liveQuery(async () => {
-      const [classes, students] = await Promise.all([
-        db.classes.toArray(),
-        db.students.toArray(),
-      ])
-      const movs = anyDb.movements?.toArray ? await anyDb.movements.toArray() : []
-      const pays = anyDb.payments?.toArray ? await anyDb.payments.toArray() : []
-      return { classes, students, movs, pays }
-    }).subscribe({
-      next: ({ classes, students, movs, pays }) => {
-        // 1) Clases del día (activas)
-        const classesToday = classes.filter((c: any) => {
-          const s = parseISO(c.start)
-          return s >= start && s <= end && !c.canceled && !c.noShow
-        })
-
-        // 2) Recolectar pagos (con depuración)
-        const dbg: DebugPay[] = []
-
-        const pushDbg = (source: 'movements' | 'payments', studentId: any, amountRaw: any, dateRaw: any) => {
-          const parsed = asDate(dateRaw)
-          const included = parsed ? inRange(parsed, start, end) : false
-          const sid = sidOf(studentId)
-          const st = sid !== null ? students.find((s: any) => s.id === sid) : null
-          dbg.push({
-            source,
-            sid,
-            studentName: st?.name ?? (sid !== null ? `#${sid}` : '—'),
-            amount: num(amountRaw),
-            rawDate: dateRaw,
-            parsed: parsed ?? null,
-            included
-          })
-        }
-
-        // movements: aceptamos type === 'payment' o registros con amount>0
-        movs.forEach((m: any) => {
-          if (m?.type && m.type !== 'payment') return
-          const dateRaw = m?.date ?? m?.paidAt ?? m?.createdAt ?? m?.timestamp
-          pushDbg('movements', m?.studentId, m?.amount ?? m?.value, dateRaw)
-        })
-
-        // payments (legacy)
-        pays.forEach((p: any) => {
-          const dateRaw = p?.date ?? p?.paidAt ?? p?.createdAt ?? p?.timestamp
-          pushDbg('payments', p?.studentId, p?.amount ?? p?.value, dateRaw)
-        })
-
-        // 3) Sumar únicamente los incluidos en el día
-        let paymentsToday = 0
-        const paymentsByStudent: Record<number, number> = {}
-        dbg.forEach(d => {
-          if (!d.included || !d.amount) return
-          paymentsToday += d.amount
-          if (d.sid !== null) paymentsByStudent[d.sid] = (paymentsByStudent[d.sid] ?? 0) + d.amount
-        })
-
-        // 4) Filas del día
-        const rowsBuilt: DayRow[] = classesToday.map((cls: any) => {
-          const st = students.find((s: any) => s.id === cls.studentId)
-          const startD = parseISO(cls.start)
-          const endD = parseISO(cls.end)
-          const durationMin = Math.max(0, Math.round((+endD - +startD) / 60000))
-          const sid = sidOf(cls.studentId)
-          const incomeForStudent = sid !== null ? paymentsByStudent[sid] ?? 0 : 0
-
-          return {
-            hour: format(startD, 'HH:mm', { locale: es }),
-            studentName: st?.name ?? '—',
-            durationMin,
-            income: incomeForStudent,
-          }
-        })
-
-        // 5) Actualizar estado (resumen, filas y depuración)
-        const totalMinutes = rowsBuilt.reduce((a, r) => a + r.durationMin, 0)
-        setSummary({
-          classes: rowsBuilt.length,
-          hours: Math.round((totalMinutes / 60) * 10) / 10,
-          income: Math.round(paymentsToday * 100) / 100,
-        })
-        setRows(rowsBuilt)
-        setDebugList(dbg)
-      },
-      error: (e) => console.error('Informes liveQuery error:', e),
-    })
-
-    return () => sub.unsubscribe()
-  }, [date])
-
-  const dateStr = useMemo(() => format(date, "EEEE d 'de' MMMM", { locale: es }), [date])
+/** Gráfico de barras SVG sin librerías */
+function SvgBarChart({
+  title,
+  labels,
+  values,
+  height = 180,
+  pad = 16,
+}: {
+  title: string
+  labels: string[]
+  values: number[]
+  height?: number
+  pad?: number
+}) {
+  const max = Math.max(1, ...values)
+  const barGap = 8
+  const barWidth = 28
+  const innerWidth = values.length * barWidth + (values.length - 1) * barGap
+  const width = innerWidth + pad * 2
+  const chartHeight = height - pad * 2 - 18
 
   return (
-    <div className="panel">
-      <div className="panel-header">
-        <h2>🗓️ Resumen del día — {dateStr}</h2>
-        <div className="toolbar">
-          <button onClick={() => setDate(addDays(date, -1))}>← Anterior</button>
-          <button onClick={() => setDate(new Date())}>🏠 Hoy</button>
-          <button onClick={() => setDate(addDays(date, 1))}>Siguiente →</button>
-          <input
-            type="date"
-            value={format(date, 'yyyy-MM-dd')}
-            onChange={e => setDate(parseISO(e.target.value))}
-          />
-          <div className="stats">
-            <span>📚 {summary.classes} clases</span>
-            <span>⏱️ {summary.hours} h</span>
-            <span>💶 {eur(summary.income)}</span>
-          </div>
-          <button onClick={() => setDebugOpen(v => !v)} style={{ marginLeft: 8 }}>
-            {debugOpen ? '🔧 Ocultar pagos del día' : '🔎 Ver pagos del día'}
-          </button>
-        </div>
-      </div>
-
-      <div className="table">
-        <div className="thead">
-          <div>Hora</div>
-          <div>Alumno</div>
-          <div>Duración</div>
-          <div>Ingresos</div>
-        </div>
-        {rows.map((r, i) => (
-          <div className="trow" key={i}>
-            <div>{r.hour}</div>
-            <div>{r.studentName}</div>
-            <div>{r.durationMin} min</div>
-            <div>{eur(r.income)}</div>
-          </div>
-        ))}
-        {rows.length === 0 && <div className="empty">No hay clases este día.</div>}
-      </div>
-
-      {debugOpen && (
-        <div className="panel" style={{ marginTop: 16 }}>
-          <div className="panel-header"><h3>🔎 Pagos detectados hoy</h3></div>
-          <div className="table">
-            <div className="thead">
-              <div>Origen</div>
-              <div>Alumno</div>
-              <div>Importe</div>
-              <div>Fecha (raw)</div>
-              <div>Fecha (parseada)</div>
-              <div>¿Incluido?</div>
-            </div>
-            {debugList.filter(d => d.amount).map((d, i) => (
-              <div className="trow" key={i}>
-                <div>{d.source}</div>
-                <div>{d.studentName}</div>
-                <div>{eur(d.amount)}</div>
-                <div style={{ fontFamily: 'monospace' }}>{String(d.rawDate ?? '—')}</div>
-                <div style={{ fontFamily: 'monospace' }}>
-                  {d.parsed ? format(d.parsed, 'yyyy-MM-dd HH:mm') : '—'}
-                </div>
-                <div>{d.included ? '✅' : '❌'}</div>
-              </div>
-            ))}
-            {debugList.length === 0 && <div className="empty">No hay pagos guardados.</div>}
-          </div>
-        </div>
-      )}
+    <div className="card">
+      <div className="card-header">{title}</div>
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
+        <rect x="0" y="0" width={width} height={height} rx="14" fill="var(--card,#fff)" />
+        {[0.25, 0.5, 0.75, 1].map((p, i) => {
+          const y = pad + chartHeight * (1 - p)
+          return (
+            <line
+              key={i}
+              x1={pad}
+              x2={width - pad}
+              y1={y}
+              y2={y}
+              stroke="var(--slot-sep,#eee)"
+              strokeDasharray="4 4"
+              strokeWidth="1"
+            />
+          )
+        })}
+        {values.map((v, i) => {
+          const h = max === 0 ? 0 : (v / max) * chartHeight
+          const x = pad + i * (barWidth + barGap)
+          const y = pad + chartHeight - h
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={barWidth} height={h} rx="8" fill="var(--accent,#e879f9)" />
+              <text
+                x={x + barWidth / 2}
+                y={height - 6}
+                fontSize="11"
+                textAnchor="middle"
+                fill="var(--muted,#6b7280)"
+              >
+                {labels[i]}
+              </text>
+              {h > 22 && (
+                <text
+                  x={x + barWidth / 2}
+                  y={y - 4}
+                  fontSize="11"
+                  textAnchor="middle"
+                  fill="var(--text,#1f2937)"
+                >
+                  {Math.round(v)}
+                </text>
+              )}
+            </g>
+          )
+        })}
+        <rect x="0" y="0" width={width} height={height} rx="14" fill="none" stroke="rgba(0,0,0,.04)" />
+      </svg>
     </div>
   )
 }
+
+export default function Informes() {
+  const [payments, setPayments] = useState<Movement[]>([])
+
+  // Cargar: intenta tabla "movements" (type='payment'); si no existe, usa "payments" (compatibilidad)
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        // @ts-ignore
+        const hasMovs = typeof db.movements?.toArray === 'function'
+        if (hasMovs) {
+          // @ts-ignore
+          const all: Movement[] = await db.movements.toArray()
+          const only = all.filter(
+            (m) => (m.type ?? 'payment') === 'payment' && typeof m.amount === 'number' && !!m.date
+          )
+          if (alive) setPayments(only)
+        } else {
+          // @ts-ignore
+          const hasPays = typeof db.payments?.toArray === 'function'
+          if (hasPays) {
+            // @ts-ignore
+            const old: any[] = await db.payments.toArray()
+            const mapped: Movement[] = old
+              .filter((p) => typeof p.amount === 'number' && !!p.date)
+              .map((p) => ({
+                id: p.id,
+                type: 'payment',
+                amount: p.amount,
+                date: p.date,
+                studentId: p.studentId,
+              }))
+            if (alive) setPayments(mapped)
+          } else if (alive) setPayments([])
+        }
+      } catch (e) {
+        console.error(e)
+        if (alive) setPayments([])
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Mes actual
+  const now = new Date()
+  const start = startOfMonth(now)
+  const end = endOfMonth(now)
+
+  // Total cobrado en el mes actual (solo pagos)
+  const totalMes = useMemo(
+    () =>
+      payments
+        .filter((p) => {
+          const d = toDate(p.date)
+          return d >= start && d <= end
+        })
+        .reduce((acc, p) => acc + (p.amount || 0), 0),
+    [payments, start, end]
+  )
+
+  // Cobros por día (mes actual)
+  const dailyData = useMemo(() => {
+    const days = eachDayOfInterval({ start, end })
+    const map = new Map<string, number>()
+    for (const d of days) map.set(d.toISOString().slice(0, 10), 0)
+    for (const p of payments) {
+      const d = toDate(p.date)
+      if (d >= start && d <= end) {
+        const key = d.toISOString().slice(0, 10)
+        map.set(key, (map.get(key) || 0) + (p.amount || 0))
+      }
+    }
+    const labels = days.map((d) => format(d, 'd'))
+    const values = days.map((d) => map.get(d.toISOString().slice(0, 10)) || 0)
+    return { labels, values }
+  }, [payments, start, end])
+
+  // Cobros por mes (últimos 6 meses, incluido el actual)
+  const monthlyData = useMemo(() => {
+    const months: { s: Date; e: Date }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const s = startOfMonth(subMonths(now, i))
+      months.push({ s, e: eom(s) })
+    }
+    const labels = months.map((m) => format(m.s, 'MMM', { locale: es }))
+    const values = months.map(({ s, e }) =>
+      payments
+        .filter((p) => {
+          const d = toDate(p.date)
+          return d >= s && d <= e
+        })
+        .reduce((acc, p) => acc + (p.amount || 0), 0)
+    )
+    return { labels, values }
+  }, [payments, now])
+
+  return (
+    <div className="container informes">
+      <header className="header">
+        <h1>Informes</h1>
+        <p className="sub">Solo cobros. Mes actual: {format(now, "LLLL yyyy", { locale: es })}</p>
+      </header>
+
+      <section className="total-card">
+        <div className="total-label">Total cobrado este mes</div>
+        <div className="total-amount">{eur(totalMes)}</div>
+        <div className="total-note">Se actualiza automáticamente con cada pago</div>
+      </section>
+
+      <section>
+        <SvgBarChart title="Cobros por mes (últimos 6)" labels={monthlyData.labels} values={monthlyData.values} />
+      </section>
+
+      <section>
+        <SvgBarChart
+          title="Cobros por día (mes actual)"
+          labels={dailyData.labels}
+          values={dailyData.values}
+          height={200}
+        />
+      </section>
+
+      <style>{css}</style>
+    </div>
+  )
+}
+
+const css = `
+.container.informes{max-width:920px;margin:0 auto;padding:16px}
+.header h1{margin:0 0 4px 0;font-size:clamp(20px,3.8vw,28px)}
+.header .sub{margin:0 0 16px 0;color:var(--muted,#6b7280);font-size:14px}
+.total-card{background:var(--card,#fff);border-radius:16px;box-shadow:var(--shadow,0 10px 25px rgba(0,0,0,.06));padding:16px;margin:8px 0 16px;border:1px solid rgba(0,0,0,.04)}
+.total-label{color:var(--muted,#6b7280);font-size:14px}
+.total-amount{font-size:clamp(28px,7vw,44px);font-weight:800;line-height:1.1;margin:6px 0;letter-spacing:-0.5px}
+.total-note{color:var(--muted,#6b7280);font-size:12px}
+.card{background:var(--card,#fff);border-radius:16px;box-shadow:var(--shadow,0 10px 25px rgba(0,0,0,.06));border:1px solid rgba(0,0,0,.04);overflow:hidden;margin:12px 0}
+.card-header{padding:12px 14px;font-weight:600;border-bottom:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,0))}
+:root{--card:#fff;--muted:#6b7280;--text:#1f2937;--slot-sep:#ede9fe;--accent:#e879f9;--shadow:0 10px 25px rgba(0,0,0,.06)}
+@media (prefers-color-scheme: dark){
+  :root{--card:#0f1115;--muted:#9aa3af;--text:#e5e7eb;--slot-sep:#1f2937;--shadow:0 10px 25px rgba(0,0,0,.3)}
+}
+`
