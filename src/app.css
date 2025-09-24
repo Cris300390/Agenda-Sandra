@@ -1,6 +1,32 @@
-:root{ --bg-1:#f9f7ff; --text:#1f2937 }
+/* ==== Estilos base Agenda Sandra ==== */
+:root{
+  --bg-1:#f9f7ff;         /* fondo lila claro */
+  --card:#ffffff;         /* tarjetas/paneles */
+  --text:#1f2937;         /* gris oscuro legible */
+  --brand-1:#f472b6;      /* rosa vivo */
+  --brand-2:#ec4899;      /* rosa marca */
+}
+
 *{ box-sizing:border-box }
-html,body,#root{ height:100% }
-body{ margin:0; background:var(--bg-1); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif }
-.main{ max-width:960px; margin:0 auto; padding:16px }
-a{ color:#ec4899; text-decoration:none } a:hover{ text-decoration:underline }
+
+html, body, #root{ height:100% }
+
+body{
+  margin:0;
+  background:var(--bg-1);
+  color:var(--text);
+  -webkit-text-size-adjust:100%;
+  text-rendering:optimizeLegibility;
+  font-family:system-ui,-apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* contenedor genérico para ver algo en pantalla */
+.main{
+  max-width:960px;
+  margin:0 auto;
+  padding:16px;
+}
+
+/* enlaces */
+a{ color:#ec4899; text-decoration:none }
+a:hover{ text-decoration:underline }
