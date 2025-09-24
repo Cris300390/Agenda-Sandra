@@ -17,15 +17,15 @@
     "jspdf-autotable": "^5.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.9.1",
-    "recharts": "^3.1.2",
+    "react-router-dom": "^7.9.2",
+    "recharts": "^3.2.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react": "^5.0.2",
+    "@vitejs/plugin-react": "^5.0.3",
     "@vitejs/plugin-react-swc": "^4.0.0",
     "eslint": "^9.33.0",
     "eslint-plugin-react-hooks": "^5.2.0",
@@ -34,7 +34,20 @@
     "globals": "^16.3.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.39.1",
-    "vite": "^7.1.5",
+    "vite": "^7.1.7",
     "vite-plugin-pwa": "^1.0.3"
-  }
+  },
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "main": "cleanup-old-events.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cris300390/Agenda-Sandra.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cris300390/Agenda-Sandra/issues"
+  },
+  "homepage": "https://github.com/Cris300390/Agenda-Sandra#readme"
 }
