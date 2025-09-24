@@ -1,8 +1,8 @@
-name: Deploy to GitHub Pages
+name: Deploy Vite to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dev-sandra ]
   workflow_dispatch:
 
 permissions:
@@ -24,31 +24,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: "npm"
+          node-version: 20
 
       - name: Install deps
         run: npm ci
 
       - name: Build
         run: npm run build
-
-      # Evita que GitHub Pages/Jekyll esconda /assets
-      - name: Add .nojekyll
-        run: echo > dist/.nojekyll
-
-      # DEBUG: mostramos qué se va a publicar
-      - name: Show dist contents
-        run: |
-          echo "===== dist/index.html (primeras líneas) ====="
-          sed -n '1,120p' dist/index.html || true
-          echo "===== dist ====="
-          ls -la dist
-          echo "===== dist/assets ====="
-          ls -la dist/assets || true
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -60,8 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deploy
         uses: actions/deploy-pages@v4
