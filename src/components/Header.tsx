@@ -1,32 +1,41 @@
+// src/components/Header.tsx
 import { NavLink } from 'react-router-dom'
 
 export default function Header() {
-  const btn = (isActive: boolean) =>
-    'navpro__btn' + (isActive ? ' is-active' : '')
-
   return (
-    <header className="navpro" style={{ display: 'block' }}>
-      <div className="navpro__inner">
-        <div className="navpro__brand">
-          <span className="navpro__emoji" aria-hidden>🎒</span>
-          <strong className="navpro__title">Las clases de Sandra</strong>
-        </div>
+    <header className="topbar topbar--center app-header">
+      <h1 className="logo">Las clases de Sandra</h1>
 
-        <nav className="navpro__menu" aria-label="Secciones">
-          <NavLink to="/" end className={({isActive}) => btn(isActive)}>
-            Agenda
-          </NavLink>
-          <NavLink to="/alumnos" className={({isActive}) => btn(isActive)}>
-            Alumnos
-          </NavLink>
-          <NavLink to="/pagos" className={({isActive}) => btn(isActive)}>
-            Pagos
-          </NavLink>
-          <NavLink to="/informes" className={({isActive}) => btn(isActive)}>
-            Informes
-          </NavLink>
-        </nav>
-      </div>
+      <nav className="nav nav--center" aria-label="Principal">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
+        >
+          Agenda
+        </NavLink>
+
+        <NavLink
+          to="/alumnos"
+          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
+        >
+          Alumnos
+        </NavLink>
+
+        <NavLink
+          to="/pagos"
+          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
+        >
+          Pagos
+        </NavLink>
+
+        <NavLink
+          to="/informes"
+          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
+        >
+          Informes
+        </NavLink>
+      </nav>
     </header>
   )
 }

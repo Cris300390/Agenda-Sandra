@@ -210,12 +210,17 @@ function DayTable({
     return slots
   }, [])
 
-  // 🔧 FIX: paréntesis para que TSX no confunda "as Date" con JSX.
+  // ✅ FIX: Comparamos por milisegundos para evitar que TSX confunda "<" con JSX.
   function eventsIn(slot: string) {
     const [hh] = slot.split(':').map(Number)
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, 0)
     const slotEnd   = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh + 1, 0)
-    return dayEvents.filter(ev => (ev.start as Date) < slotEnd && (ev.end as Date) > slotStart)
+    const sStart = slotStart.getTime()
+    const sEnd   = slotEnd.getTime()
+    return dayEvents.filter(ev =>
+      new Date(ev.start).getTime() < sEnd &&
+      new Date(ev.end).getTime()   > sStart
+    )
   }
 
   /* Layout: móvil apila (agenda -> resumen). Escritorio: 2 columnas. Sin bordes. */
