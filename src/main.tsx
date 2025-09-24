@@ -1,27 +1,17 @@
 // src/main.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App'
-import { ToastProvider } from './ui/Toast'
 
-// Estilos globales
-import './index.css'
-import './App.css'
-import './logic/rollover'
+// Si tienes estilos globales, déjalo:
+import './app.css'  // o './index.css' si es tu caso
 
-// Montaje raíz
-const rootEl = document.getElementById('root')!
-
-ReactDOM.createRoot(rootEl).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* HashRouter evita 404 en GitHub Pages */}
-    <HashRouter>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
-    </HashRouter>
+    {/* En GitHub Pages, la app vive en /Agenda-Sandra/ */}
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>
 )
-
-
