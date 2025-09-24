@@ -1,3 +1,4 @@
+// src/pages/Agenda.tsx
 import { useEffect, useMemo, useState } from 'react'
 import {
   addMonths, addWeeks, addDays,
@@ -7,10 +8,11 @@ import {
 import { es } from 'date-fns/locale'
 import { db } from '../db'
 import { isHoliday } from '../util/holidays'
+import { liveQuery } from 'dexie'
 
 /* ===== Config ===== */
-const START_HOUR = 16   // desde 16:00
-const END_HOUR   = 22   // hasta 21:59
+const START_HOUR = 16
+const END_HOUR   = 22
 
 /* ===== Tipos ===== */
 type CalendarEvent = {
@@ -44,28 +46,39 @@ export default function Agenda() {
     const saved = localStorage.getItem('agenda.currentDate')
     return saved ? new Date(saved) : new Date()
   })
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0) // fuerza a recalcular el mes si cambian datos
   const isMobile = useIsMobile()
 
-  async function loadEvents() {
-    const classes = await db.classes.toArray()
-    const students = await db.students.toArray()
-    const byId = new Map(students.map(s => [s.id!, s]))
-    const evts: CalendarEvent[] = classes.map(c => ({
-      id: c.id,
-      title: byId.get(c.studentId)?.name || c.title,
-      start: parseISO(c.start),
-      end: parseISO(c.end),
-      color: byId.get(c.studentId)?.color,
-      studentId: c.studentId,
-    }))
-    setEvents(evts)
-  }
-  ;(window as any).loadEvents = loadEvents
-  const refreshAll = async () => { await loadEvents(); setRefreshKey(k => k + 1) }
+  // ✅ Suscripción reactiva a cambios en IndexedDB (sin refrescar manual)
+  useEffect(() => {
+    const sub = liveQuery(async () => {
+      const classes = await db.classes.toArray()
+      const students = await db.students.toArray()
+      return { classes, students }
+    }).subscribe({
+      next: ({ classes, students }) => {
+        const byId = new Map(students.map(s => [s.id!, s]))
+        const evts: CalendarEvent[] = classes.map(c => ({
+          id: c.id,
+          title: byId.get(c.studentId)?.name || c.title,
+          start: typeof c.start === 'string' ? parseISO(c.start) : new Date(c.start),
+          end:   typeof c.end   === 'string' ? parseISO(c.end)   : new Date(c.end),
+          color: byId.get(c.studentId)?.color,
+          studentId: c.studentId,
+        }))
+        setEvents(evts)
+        setRefreshKey(k => k + 1) // actualiza cabeceras (contadores del mes)
+      },
+      error: (err) => {
+        console.error('liveQuery error', err)
+      }
+    })
+    return () => sub.unsubscribe()
+  }, [])
 
-  useEffect(() => { loadEvents() }, [])
-  useEffect(() => { localStorage.setItem('agenda.currentDate', currentDate.toISOString()) }, [currentDate])
+  useEffect(() => {
+    localStorage.setItem('agenda.currentDate', currentDate.toISOString())
+  }, [currentDate])
 
   /* Marco sin tarjeta en móvil (pantalla completa, sin bordes) */
   const frameStyle = isMobile
@@ -73,18 +86,20 @@ export default function Agenda() {
     : { maxWidth: '1200px', margin: '0 auto', background: 'rgba(255,255,255,0.98)', borderRadius: 20, boxShadow: '0 10px 40px rgba(0,0,0,.06)' }
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg,#fdf2f8 0%,#fce7f3 40%,#fbcfe8 100%)',
-      minHeight: '100dvh',
-      padding: isMobile ? '8px' : '20px',
-      fontFamily: "'Inter','Segoe UI',system-ui,sans-serif"
-    }}>
+    <div
+      style={{
+        background: 'transparent',
+        minHeight: '100dvh',
+        padding: isMobile ? '8px' : '20px',
+        fontFamily: "'Inter','Segoe UI',system-ui,sans-serif"
+      }}
+    >
       <div style={frameStyle}>
-        {/* Cabecera simple en móvil */}
+        {/* Cabecera de la página */}
         <div style={{
           padding: isMobile ? '8px 10px' : '18px 24px',
-          background: isMobile ? 'transparent' : 'linear-gradient(135deg,#f472b6,#ec4899)',
-          color: isMobile ? '#be185d' : 'white',
+          background: 'transparent',
+          color: '#0f172a',
           borderRadius: isMobile ? 0 : '20px 20px 0 0'
         }}>
           <h1 style={{ margin: 0, fontWeight: 800, fontSize: isMobile ? 24 : 34 }}>Agenda Sandra</h1>
@@ -139,7 +154,7 @@ export default function Agenda() {
                   const st = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), sH, sM)
                   const en = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), eH, eM)
                   await db.classes.add({ studentId: student.id!, title: 'Clase', start: st.toISOString(), end: en.toISOString() })
-                  await refreshAll()
+                  // No hace falta refrescar: liveQuery lo hace solo
                   return
                 }
 
@@ -165,14 +180,19 @@ export default function Agenda() {
                 if (adds.length === 0) return
 
                 await db.transaction('rw', db.classes, async () => {
-                  for (const a of adds) await db.classes.add({ studentId: student.id!, title: 'Clase', start: a.start, end: a.end })
+                  for (const a of adds) {
+                    await db.classes.add({ studentId: student.id!, title: 'Clase', start: a.start, end: a.end })
+                  }
                 })
-                await refreshAll()
+                // liveQuery actualizará la interfaz automáticamente
               }}
-              onDeleteEvent={async () => { await refreshAll() }}
+              onDeleteEvent={async (id) => {
+                if (typeof id === 'number') await db.classes.delete(id)
+                // liveQuery actualizará
+              }}
               onUpdateEvent={async (id, newStart, newEnd, sid) => {
                 await db.classes.update(id, { start: newStart.toISOString(), end: newEnd.toISOString(), studentId: sid })
-                await refreshAll()
+                // liveQuery actualizará
               }}
             />
           </section>
@@ -191,7 +211,7 @@ function DayTable({
   date: Date
   events: CalendarEvent[]
   onCreateAtSlot?: (slot: string, studentId?: number, start?: string, end?: string, repeat?: RepeatOptions) => void
-  onDeleteEvent?: () => void
+  onDeleteEvent?: (id: number) => void
   onUpdateEvent?: (evId: number, newStart: Date, newEnd: Date, studentId?: number) => void
 }) {
   const dayEvents = useMemo(() => {
@@ -201,7 +221,7 @@ function DayTable({
         const h = d.getHours()
         return d.toDateString() === date.toDateString() && h >= START_HOUR && h < END_HOUR
       })
-      .sort((a, b) => (a.start as Date).getTime() - (b.start as Date).getTime())
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
   }, [date, events])
 
   const timeSlots = useMemo(() => {
@@ -210,20 +230,14 @@ function DayTable({
     return slots
   }, [])
 
-  // ✅ FIX: Comparamos por milisegundos para evitar que TSX confunda "<" con JSX.
+  // ✅ Sin "as Date" para evitar el error de TSX
   function eventsIn(slot: string) {
     const [hh] = slot.split(':').map(Number)
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, 0)
     const slotEnd   = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh + 1, 0)
-    const sStart = slotStart.getTime()
-    const sEnd   = slotEnd.getTime()
-    return dayEvents.filter(ev =>
-      new Date(ev.start).getTime() < sEnd &&
-      new Date(ev.end).getTime()   > sStart
-    )
+    return dayEvents.filter(ev => ev.start < slotEnd && ev.end > slotStart)
   }
 
-  /* Layout: móvil apila (agenda -> resumen). Escritorio: 2 columnas. Sin bordes. */
   const gridStyle = {
     display: 'grid',
     gridTemplateColumns: isMobile ? '1fr' : '1fr 340px',
@@ -233,7 +247,6 @@ function DayTable({
   return (
     <div style={{ padding: isMobile ? '0 2px' : 0 }}>
       <div style={gridStyle}>
-        {/* Tabla horario */}
         <table role="table" aria-label="Agenda del día" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 10px' }}>
           <thead>
             <tr>
@@ -266,8 +279,7 @@ function DayTable({
                               event={ev}
                               onUpdate={onUpdateEvent}
                               onDelete={async (id) => {
-                                await db.classes.delete(id)
-                                if (onDeleteEvent) await onDeleteEvent()
+                                if (onDeleteEvent && typeof id === 'number') await onDeleteEvent(id)
                               }}
                             />
                           ))}
@@ -284,7 +296,6 @@ function DayTable({
           </tbody>
         </table>
 
-        {/* Resumen del día (siempre debajo en móvil) */}
         <ResumenPanel date={date} dayEvents={dayEvents} timeSlots={timeSlots} eventsIn={eventsIn} />
       </div>
     </div>
@@ -307,9 +318,8 @@ function InlineAdd({
     return `${String(h + 1).padStart(2,'0')}:00`
   })
 
-  // Repetir
   const weekdayNames = ['L','M','X','J','V','S','D']
-  const todayW = ((new Date().getDay() + 6) % 7) + 1 // 1..7
+  const todayW = ((new Date().getDay() + 6) % 7) + 1
   const [repeatEnabled, setRepeatEnabled] = useState(false)
   const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([todayW])
   const [repeatUntil, setRepeatUntil] = useState<string>(format(addWeeks(new Date(), 8), 'yyyy-MM-dd'))
@@ -324,9 +334,8 @@ function InlineAdd({
     if (!onCreate || !sid) return
     const repeat = repeatEnabled ? { enabled: true, weekdays: repeatWeekdays, until: repeatUntil } : { enabled: false, weekdays: [] }
     await onCreate(slot, Number(sid), start, end, repeat)
+    // limpiamos el selector (feedback visual de que se añadió)
     setSid('')
-    const load = (window as any).loadEvents
-    if (load) await load()
   }
 
   return (
@@ -345,8 +354,12 @@ function InlineAdd({
         <button onClick={create} disabled={!sid}>Añadir</button>
       </div>
 
-      {/* Repetir */}
-      <div style={{ display: 'grid', gap: 6, background: '#fff7fb', border: '1px dashed #ec4899', borderRadius: 12, padding: 8 }}>
+      {/* Bloque repetir: bien contenido en móvil */}
+      <div style={{
+        display: 'grid', gap: 6,
+        background: '#fff7fb', border: '1px dashed #ec4899',
+        borderRadius: 12, padding: 8
+      }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" checked={repeatEnabled} onChange={e => setRepeatEnabled(e.target.checked)} />
           Repetir semanalmente
@@ -389,14 +402,14 @@ function Pill({
   onUpdate?: (id: number, s: Date, e: Date, sid?: number) => void
   onDelete?: (id: number) => void
 }) {
-  const [start, setStart] = useState(() => format(event.start as Date, 'HH:mm'))
-  const [end,   setEnd]   = useState(() => format(event.end as Date, 'HH:mm'))
+  const [start, setStart] = useState(() => format(event.start, 'HH:mm'))
+  const [end,   setEnd]   = useState(() => format(event.end, 'HH:mm'))
   const [isEditing, setIsEditing] = useState(false)
 
   async function save() {
     const [sH, sM] = start.split(':').map(Number)
     const [eH, eM] = end.split(':').map(Number)
-    const d = event.start as Date
+    const d = event.start
     const ns = new Date(d.getFullYear(), d.getMonth(), d.getDate(), sH, sM)
     const ne = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eH, eM)
     if (event.id && onUpdate) onUpdate(event.id, ns, ne, event.studentId)
@@ -410,7 +423,7 @@ function Pill({
           background: `linear-gradient(135deg, ${event.color || '#fb7185'}, #a855f7)`,
           color: 'white', padding: '8px 12px', borderRadius: 12, fontSize: 13, fontWeight: 700
         }}>
-          {event.title} · {format(event.start as Date, 'HH:mm')}–{format(event.end as Date, 'HH:mm')}
+          {event.title} · {format(event.start, 'HH:mm')}–{format(event.end, 'HH:mm')}
         </span>
         <button onClick={() => setIsEditing(true)} style={{ fontSize: 12 }}>✏️</button>
         <button onClick={() => event.id && onDelete && onDelete(event.id)} style={{ fontSize: 12 }}>🗑️</button>
@@ -429,7 +442,7 @@ function Pill({
   )
 }
 
-/* ===== Resumen día (amigable con color) ===== */
+/* ===== Resumen día ===== */
 function ResumenPanel({
   date, dayEvents, timeSlots, eventsIn
 }:{
@@ -438,15 +451,14 @@ function ResumenPanel({
   timeSlots: string[]
   eventsIn: (slot: string) => CalendarEvent[]
 }) {
-  const CAP = 10 // capacidad por franja
+  const CAP = 10
   const fmt = (d: Date) => format(d, 'HH:mm')
 
-  // Agrupa por alumno
   const alumnos = useMemo(() => {
     const m = new Map<string, { color: string; times: string[] }>()
     for (const e of dayEvents) {
       const name = e.title
-      const t = `${fmt(e.start as Date)}–${fmt(e.end as Date)}`
+      const t = `${fmt(e.start)}–${fmt(e.end)}`
       const color = e.color || '#ec4899'
       if (!m.has(name)) m.set(name, { color, times: [t] })
       else m.get(name)!.times.push(t)
@@ -465,7 +477,6 @@ function ResumenPanel({
 
   return (
     <aside style={{ display: 'grid', gap: 10 }}>
-      {/* Tarjetas resumen */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
         <div style={{
           background: 'linear-gradient(135deg,#f472b6,#ec4899)',
@@ -483,7 +494,6 @@ function ResumenPanel({
         </div>
       </div>
 
-      {/* Ocupación por franja (con barra) */}
       <div style={{ background: 'white', padding: 14, borderRadius: 14, boxShadow: '0 6px 16px rgba(0,0,0,.06)' }}>
         <div style={{ fontWeight: 800, marginBottom: 8, color: '#334155' }}>🕰️ Ocupación</div>
         <div style={{ display: 'grid', gap: 8 }}>
@@ -508,7 +518,6 @@ function ResumenPanel({
         </div>
       </div>
 
-      {/* Alumnos y horas (chips de color) */}
       <div style={{ background: 'white', padding: 14, borderRadius: 14, boxShadow: '0 6px 16px rgba(0,0,0,.06)' }}>
         <div style={{ fontWeight: 800, marginBottom: 8, color: '#334155' }}>👦👧 Alumnos y horas</div>
         {alumnos.length === 0 && <div style={{ color: '#64748b' }}>Sin clases hoy.</div>}
@@ -528,7 +537,7 @@ function ResumenPanel({
   )
 }
 
-/* ===== Mes (compacto en móvil) ===== */
+/* ===== Mes ===== */
 function MonthTable({
   isMobile, date, events, onPickDay, onPrevMonth, onNextMonth, onToday
 }: {
@@ -548,13 +557,12 @@ function MonthTable({
   while (d <= end) { days.push(d); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) }
 
   function inHours(e: CalendarEvent) {
-    const h = (e.start as Date).getHours()
+    const h = e.start.getHours()
     return h >= START_HOUR && h < END_HOUR
   }
   function eventsCount(day: Date) { return events.filter(e => inHours(e) && isSameDay(e.start, day)).length }
   function uniqueStudentsCount(day: Date) { return new Set(events.filter(e => inHours(e) && isSameDay(e.start, day)).map(e => e.title)).size }
 
-  // Tamaños compactos en móvil
   const gap         = isMobile ? 4  : 8
   const titleSize   = isMobile ? 16 : 18
   const weekdaySize = isMobile ? 11 : 12

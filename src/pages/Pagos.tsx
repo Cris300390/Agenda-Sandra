@@ -3,14 +3,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { db } from '../db'
 import type { Student } from '../db'
 import {
-  format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear
+  format, startOfMonth, endOfMonth, isWithinInterval, parseISO,
+  startOfYear, endOfYear
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useToast } from '../ui/Toast'   // 👈 Notificaciones profesionales
+import { useToast } from '../ui/Toast'          // toasts + confirm
+import PagosCleanup from '../components/PagosCleanup' // mantenimiento (borrar mes / huérfanos)
 
+/* ===== Tipos ===== */
 type MovementType = 'debt' | 'payment'
 type Payer = 'madre' | 'padre' | 'alumno' | 'ns'
-
 type Movement = {
   id?: number
   studentId?: number
@@ -22,6 +24,7 @@ type Movement = {
   monthKey?: string        // YYYY-MM (para control mensual)
 }
 
+/* ===== Utiles ===== */
 const eur = (n: number) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(n ?? 0)
 
@@ -29,21 +32,21 @@ const toInputDateTime = (d: Date) => {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
-
 const yyyyMM = (d: Date) => format(d, 'yyyy-MM')
 
+/* ===== Página ===== */
 export default function PagosPage() {
-  const toast = useToast() // 👈 hook de toasts/confirm
+  const toast = useToast()
 
   // Alumnos
   const [students, setStudents] = useState<Student[]>([])
   const [studentId, setStudentId] = useState<number | null>(null)
 
-  // Formulario (sin ceros por defecto)
+  // Formulario
   const [when, setWhen] = useState<string>(() => toInputDateTime(new Date()))
   const [note, setNote] = useState('')
-  const [debtAmount, setDebtAmount] = useState<string>('') // vacío
-  const [payAmount, setPayAmount] = useState<string>('')   // vacío
+  const [debtAmount, setDebtAmount] = useState<string>('') // vacío por defecto
+  const [payAmount, setPayAmount] = useState<string>('')   // vacío por defecto
   const [payer, setPayer] = useState<Payer>('ns')
 
   // Datos
@@ -60,6 +63,13 @@ export default function PagosPage() {
   }
   useEffect(() => { load() }, [])
 
+  // refresco automático cuando otros componentes limpian datos
+  useEffect(() => {
+    const h = () => load()
+    window.addEventListener('data:changed', h as any)
+    return () => window.removeEventListener('data:changed', h as any)
+  }, [])
+
   const nameById = useMemo(() => {
     const m = new Map<number, string>()
     students.forEach(s => { if (typeof s.id === 'number') m.set(s.id, s.name) })
@@ -68,13 +78,13 @@ export default function PagosPage() {
 
   const canCreate = studentId != null
 
-  // Rango del mes
+  // Rango del mes seleccionado
   const range = useMemo(() => {
     const base = new Date(when)
     return { start: startOfMonth(base), end: endOfMonth(base) }
   }, [when])
 
-  // Movimientos del mes por alumno seleccionado
+  // Movimientos del mes por alumno
   const monthItems = useMemo(() => {
     return items.filter(m =>
       studentId != null &&
@@ -100,7 +110,7 @@ export default function PagosPage() {
     })
   }, [monthItems])
 
-  // Resumen mensual de TODOS los alumnos (para el mes visible)
+  // Resumen del mes de TODOS los alumnos
   const perStudentMonth = useMemo(() => {
     const inMonth = items.filter(m =>
       isWithinInterval(parseISO(m.date), { start: range.start, end: range.end })
@@ -121,7 +131,20 @@ export default function PagosPage() {
     return list
   }, [items, range, nameById])
 
-  // Historial mensual del alumno seleccionado (año en curso)
+  // Buckets “al día” y “con deuda” del mes
+  const statusBuckets = useMemo(() => {
+    const ok = perStudentMonth
+      .filter(s => s.pendiente <= 0)
+      .map(s => ({ id: s.id, name: s.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    const debt = perStudentMonth
+      .filter(s => s.pendiente > 0)
+      .map(s => ({ id: s.id, name: s.name, amount: s.pendiente }))
+      .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, 'es'))
+    return { ok, debt }
+  }, [perStudentMonth])
+
+  // Historial mensual del alumno (año en curso)
   const historyByMonth = useMemo(() => {
     if (studentId == null) return []
     const base = new Date(when)
@@ -139,7 +162,6 @@ export default function PagosPage() {
       else row.pagado += m.amount
     }
     for (const v of acc.values()) v.pendiente = v.deuda - v.pagado
-    // ordenar desc por mes
     return Array.from(acc.values()).sort((a, b) => b.key.localeCompare(a.key))
   }, [items, studentId, when])
 
@@ -149,7 +171,7 @@ export default function PagosPage() {
     return isNaN(n) ? 0 : n
   }
 
-  // ===== altas con toast =====
+  /* ===== Alta de movimientos ===== */
   async function addDebt() {
     if (!canCreate) { toast.error('Selecciona un alumno'); return }
     const amount = parseEuro(debtAmount)
@@ -178,12 +200,11 @@ export default function PagosPage() {
     await load()
   }
 
-  // ===== deshacer última del mes (con confirm elegante) =====
+  /* ===== Deshacer / Eliminar ===== */
   async function undoLast(kind: MovementType) {
     if (studentId == null) return
     const base = new Date(when)
     const monthStart = startOfMonth(base), monthEnd = endOfMonth(base)
-    // buscamos el último del tipo en ese mes
     const list = items
       .filter(m => m.studentId === studentId &&
                    m.type === kind &&
@@ -207,7 +228,6 @@ export default function PagosPage() {
     await load()
   }
 
-  // ===== eliminar fila concreta (con confirm elegante) =====
   async function remove(item: Movement) {
     if (!item.id) return
     const fecha = format(new Date(item.date), 'dd/MM/yyyy HH:mm', { locale: es })
@@ -227,16 +247,20 @@ export default function PagosPage() {
     await load()
   }
 
-  // Estilos locales
+  /* ===== Estilos (incluye responsive móvil) ===== */
   const scoped = `
     .stack { display: grid; gap: 16px; }
     .block { background:#fff; border:1px solid #eee; border-radius:16px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.05); }
-    .row { display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap:12px; align-items:end; }
+    .row { display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:12px; align-items:end; }
     .field { display:grid; gap:6px; }
     .field label { font-size:12px; color:#6b7280; }
     .select-student { grid-column: span 2; }
+    .actions-inline { display:flex; gap: 8px; align-items: end; flex-wrap: wrap; }
 
-    .actions-inline { display:flex; gap: 8px; align-items: end; }
+    .btn { padding:10px 14px; border-radius:12px; border:1px solid #e5e7eb; background:#fff; font-weight:800; cursor:pointer; }
+    .btn:hover { background:#f8fafc; }
+    .btn-primary{ background:#fee2e2; border-color:#fecaca; color:#991b1b }
+    .btn-success{ background:#dcfce7; border-color:#bbf7d0; color:#065f46 }
 
     .stats { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; }
     .stat { border:1px solid #eee; border-radius:14px; padding:14px; background:#fbfbfe; }
@@ -250,47 +274,91 @@ export default function PagosPage() {
     .money--pos { color:#16a34a; font-weight:700; }
     .money--muted { color:#334155; font-weight:700; }
 
+    .table-wrap { overflow: hidden; }
     table { width:100%; border-collapse:separate; border-spacing:0 8px; }
     thead th { text-align:left; font-size:12px; color:#64748b; padding:8px 10px; }
     tbody td { background:#fff; border:1px solid #eef2f7; padding:10px 12px; border-radius:12px; vertical-align:top; }
     .chip { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; }
     .chip--debt { background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
     .chip--pay  { background:#dcfce7; color:#065f46; border:1px solid #bbf7d0; }
-    .actions { display:flex; gap:8px; }
+    .actions { display:flex; gap:8px; flex-wrap: wrap; }
     .btn-s { padding:6px 10px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; font-size:14px; cursor:pointer; }
     .btn-s:hover { background:#f8fafc; }
 
-    /* Resumen de alumnos (con encabezado claro) */
+    /* Resumen de alumnos */
     .summary { display: grid; gap: 10px; }
     .summary-grid { display:grid; grid-template-columns: 1fr 140px 140px 140px; gap:12px; align-items:center; }
     .summary-header { color:#475569; font-size:12px; font-weight:700; padding: 0 2px; }
-    .summary-row {
-      background:#fff; border:1px solid #eee; border-radius:12px; padding:10px 12px;
-      box-shadow:0 6px 14px rgba(0,0,0,.04);
-    }
+    .summary-row { background:#fff; border:1px solid #eee; border-radius:12px; padding:10px 12px; box-shadow:0 6px 14px rgba(0,0,0,.04); }
     .summary-name { display:flex; align-items:center; gap:10px; font-weight:700; }
     .avatar { width:28px; height:28px; border-radius:50%; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; }
     .summary-money { text-align:right; font-weight:800; }
-    .summary-neg { color:#dc2626; } /* pendiente > 0 */
-    .summary-pos { color:#16a34a; } /* pendiente < 0 (a favor) */
+    .summary-neg { color:#dc2626; }
+    .summary-pos { color:#16a34a; }
     .summary-ok { display:inline-flex; align-items:center; gap:6px; background:#dcfce7; color:#065f46; border:1px solid #bbf7d0; padding:4px 8px; border-radius:999px; font-weight:700; font-size:12px; }
+
+    /* Estado mes: al día vs con deuda */
+    .status { display:grid; gap: 10px; }
+    .status-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .status-badges { display:flex; gap:8px; flex-wrap:wrap; }
+    .badge-ok { background:#dcfce7; color:#065f46; border:1px solid #bbf7d0; padding:6px 10px; border-radius:999px; font-weight:800; font-size:12px; }
+    .badge-debt { background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:6px 10px; border-radius:999px; font-weight:800; font-size:12px; }
+    .status-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .status-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:9999px; font-weight:800; font-size:13px; border:1px solid #e5e7eb; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.04); }
+    .status-pill.ok { border-color:#bbf7d0; }
+    .status-pill.debt { border-color:#fecaca; }
 
     /* Historial mensual del alumno */
     .history { display:grid; gap:10px; }
     .history-row { display:grid; grid-template-columns: 120px 1fr 1fr 1fr; gap:12px; align-items:center; background:#fff; border:1px solid #eee; border-radius:12px; padding:10px 12px; }
     .history-header { color:#475569; font-size:12px; font-weight:700; padding: 0 2px; }
 
-    @media (max-width: 1100px) {
-      .summary-grid { grid-template-columns: 1fr 120px 120px 120px; }
-    }
+    /* --------- MÓVIL --------- */
     @media (max-width: 960px){
       .row { grid-template-columns:1fr 1fr 1fr; } .select-student { grid-column: span 1; }
     }
     @media (max-width: 720px){
       .row { grid-template-columns:1fr; }
+      .stats { grid-template-columns: 1fr; }
       .summary-grid { grid-template-columns: 1fr; }
       .summary-money { text-align:left; }
       .history-row { grid-template-columns: 1fr; row-gap:6px; }
+    }
+    @media (max-width: 520px){
+      .field label { font-size:13px; }
+      select, input, .btn, .btn-s { min-height:44px; font-size:16px; border-radius:14px; }
+      .actions-inline { align-items: stretch; }
+      .actions-inline .btn, .actions-inline .btn-s { flex: 1 1 auto; }
+
+      .table-wrap { overflow: visible; }
+      table { border-spacing: 0; }
+      thead { display: none; }
+      tbody { display:block; }
+      tbody tr {
+        display:block;
+        background: #fff;
+        border: 1px solid #eef2f7;
+        border-radius: 14px;
+        padding: 10px;
+        box-shadow: 0 6px 16px rgba(0,0,0,.05);
+        margin-bottom: 10px;
+      }
+      tbody td {
+        display:flex;
+        justify-content: space-between;
+        align-items: center;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 8px;
+        background: transparent;
+      }
+      tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #64748b;
+        margin-right: 12px;
+      }
+      .actions { justify-content: flex-end; }
     }
   `
 
@@ -302,7 +370,7 @@ export default function PagosPage() {
     <div className="stack page--withHeader">
       <style>{scoped}</style>
 
-      {/* Alumno + formulario + botones deshacer */}
+      {/* Alumno + formulario + deshacer */}
       <section className="block">
         <div className="row">
           <div className="field select-student">
@@ -391,61 +459,100 @@ export default function PagosPage() {
         </div>
       </section>
 
-      {/* Movimientos del mes (alumno) — sin botón Editar */}
+      {/* Estado general del mes */}
+      <section className="block">
+        <div className="status">
+          <div className="status-head">
+            <strong>Estado de alumnos (mes)</strong>
+            <div className="status-badges">
+              <span className="badge-ok">Al día: {statusBuckets.ok.length}</span>
+              <span className="badge-debt">Con deuda: {statusBuckets.debt.length}</span>
+            </div>
+          </div>
+
+          {statusBuckets.debt.length > 0 && (
+            <>
+              <div className="muted">Con deuda</div>
+              <div className="status-list">
+                {statusBuckets.debt.map(s => (
+                  <span key={s.id} className="status-pill debt">
+                    🔴 {s.name} · {eur(s.amount)}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="muted" style={{ marginTop: 6 }}>Al día</div>
+          <div className="status-list">
+            {statusBuckets.ok.length > 0
+              ? statusBuckets.ok.map(s => (
+                  <span key={s.id} className="status-pill ok">✅ {s.name}</span>
+                ))
+              : <span className="muted">—</span>}
+          </div>
+        </div>
+      </section>
+
+      {/* Movimientos del mes (alumno) */}
       <section className="block">
         <h3 style={{ margin: '0 0 10px' }}>
           Movimientos de {format(new Date(when), 'MMMM yyyy', { locale: es })}
           {selected ? ` — ${selected.name}` : ''}
         </h3>
 
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: 170 }}>Fecha</th>
-              <th style={{ width: 120 }}>Movimiento</th>
-              <th style={{ width: 140 }}>Importe</th>
-              <th style={{ width: 120 }}>Saldo</th>
-              <th>Nota / Paga</th>
-              <th style={{ width: 120 }}>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rowsWithBalance.length === 0 && (
-              <tr><td colSpan={6} className="muted">Elige un alumno y/o no hay movimientos en este mes.</td></tr>
-            )}
+        <div className="table-wrap">
+          <table className="mobile-table">
+            <thead>
+              <tr>
+                <th style={{ width: 170 }}>Fecha</th>
+                <th style={{ width: 120 }}>Movimiento</th>
+                <th style={{ width: 140 }}>Importe</th>
+                <th style={{ width: 120 }}>Saldo</th>
+                <th>Nota / Paga</th>
+                <th style={{ width: 120 }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rowsWithBalance.length === 0 && (
+                <tr><td colSpan={6} className="muted">Elige un alumno y/o no hay movimientos en este mes.</td></tr>
+              )}
 
-            {rowsWithBalance.map(m => {
-              const d = new Date(m.date)
-              const isDebt = m.type === 'debt'
-              return (
-                <tr key={m.id}>
-                  <td>{format(d, 'dd/MM/yyyy HH:mm')}</td>
-                  <td><span className={`chip ${isDebt ? 'chip--debt' : 'chip--pay'}`}>{isDebt ? 'Deuda' : 'Pago'}</span></td>
-                  <td className={isDebt ? 'money--neg' : 'money--pos'}>
-                    {isDebt ? '+ ' : '− '}{eur(m.amount)}
-                  </td>
-                  <td className="money--muted">{eur((m as any).balance)}</td>
-                  <td>{m.note ? m.note : <span className="muted">—</span>}{m.payer && m.payer !== 'ns' ? `  ·  ${m.payer}` : ''}</td>
-                  <td>
-                    <div className="actions">
-                      <button className="btn-s" onClick={() => remove(m)}>Eliminar</button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              {rowsWithBalance.map(m => {
+                const d = new Date(m.date)
+                const isDebt = m.type === 'debt'
+                return (
+                  <tr key={m.id}>
+                    <td data-label="Fecha">{format(d, 'dd/MM/yyyy HH:mm')}</td>
+                    <td data-label="Movimiento"><span className={`chip ${isDebt ? 'chip--debt' : 'chip--pay'}`}>{isDebt ? 'Deuda' : 'Pago'}</span></td>
+                    <td data-label="Importe" className={isDebt ? 'money--neg' : 'money--pos'}>
+                      {isDebt ? '+ ' : '− '}{eur(m.amount)}
+                    </td>
+                    <td data-label="Saldo" className="money--muted">{eur((m as any).balance)}</td>
+                    <td data-label="Nota / Paga">
+                      {m.note ? m.note : <span className="muted">—</span>}
+                      {m.payer && m.payer !== 'ns' ? `  ·  ${m.payer}` : ''}
+                    </td>
+                    <td data-label="Acciones">
+                      <div className="actions">
+                        <button className="btn-s" onClick={() => remove(m)}>Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
 
-      {/* Resumen de TODOS los alumnos (mes) — con encabezado claro */}
+      {/* Resumen de TODOS los alumnos (mes) */}
       {perStudentMonth.length >= 2 && (
         <section className="block">
           <h3 style={{ margin: '0 0 10px' }}>
             Resumen de alumnos — {format(new Date(when), 'MMMM yyyy', { locale: es })}
           </h3>
 
-          {/* Encabezado */}
           <div className="summary summary-grid">
             <div className="summary-header">Alumno</div>
             <div className="summary-header" style={{ textAlign:'right' }}>Deuda</div>
@@ -453,7 +560,6 @@ export default function PagosPage() {
             <div className="summary-header" style={{ textAlign:'right' }}>Pendiente</div>
           </div>
 
-          {/* Filas */}
           <div className="summary">
             {perStudentMonth.map(s => (
               <div key={s.id} className="summary-row summary-grid">
@@ -476,14 +582,13 @@ export default function PagosPage() {
         </section>
       )}
 
-      {/* Historial mensual del alumno (año en curso) */}
+      {/* Historial por meses del alumno (año en curso) */}
       {selected && (
         <section className="block">
           <h3 style={{ margin: '0 0 10px' }}>
             Historial mensual — {selected.name} (año {format(new Date(when), 'yyyy')})
           </h3>
 
-          {/* Encabezado */}
           <div className="history">
             <div className="history-row history-header">
               <div>Mes</div>
@@ -516,6 +621,9 @@ export default function PagosPage() {
           </div>
         </section>
       )}
+
+      {/* Panel de mantenimiento (borrar mes / huérfanos) */}
+      <PagosCleanup />
     </div>
   )
 }

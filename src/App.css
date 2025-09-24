@@ -1,506 +1,244 @@
 /* =========================
-   Agenda Sandra — app.css (completo)
-   Profesional, móvil first
+   Agenda Sandra — App.css
    ========================= */
 
-/* ===== Variables y tema ===== */
+/* --------- Fuente del título (cursiva) --------- */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+
+/* --------- Variables de color --------- */
 :root{
-  /* Base */
-  --bg-1:#f9f7ff;         /* lila muy claro */
-  --bg-2:#fffdfd;         /* casi blanco cálido */
-  --card:#ffffff;         /* tarjetas/paneles */
-  --text:#1f2937;         /* gris oscuro legible */
-  --muted:#6b7280;        /* texto secundario */
+  --bg-1:#f9f7ff;
+  --text:#0f172a;
 
-  /* Marca (degradado activo) */
-  --brand-1:#f472b6;      /* rosa vivo */
-  --brand-2:#ec4899;      /* magenta suave */
+  --pink-1:#ff7ab9;  /* rosa */
+  --pink-2:#e11d74;  /* magenta */
 
-  /* Colores pastel para “aura” de cada botón (no activo) */
-  --chip1:#f472b6; /* Agenda → rosa */
-  --chip2:#6366f1; /* Alumnos → índigo */
-  --chip3:#10b981; /* Pagos → esmeralda */
-  --chip4:#0ea5e9; /* Informes → celeste */
-
-  /* Otros */
-  --danger:#ef4444;
-  --success:#10b981;
-  --slot-sep:#ede9fe;
-  --slot-zebra:#faf5ff;
-  --shadow:0 10px 25px rgba(0,0,0,.06);
-  --radius:16px;
-
-  /* Layout agenda escritorio */
-  --agenda-cols: 1fr 320px;
-
-  /* Alto del cabecero y paleta del header “glass” */
-  --header-h: 72px;
-  --header-grad-1:#7c3aed;   /* morado vibrante */
-  --header-grad-2:#ec4899;   /* magenta/rosa */
-  --header-glow: rgba(236,72,153,.35);
-  --chip-alpha: 14%;
+  --soft-card:#ffffff;
+  --soft-border:#ececf5;
+  --shadow-s:0 4px 14px rgba(0,0,0,.06);
+  --shadow-m:0 10px 22px rgba(0,0,0,.12);
+  --shadow-xl:0 12px 28px rgba(190,24,93,.18);
 }
 
-/* En móvil subimos un pelín la altura del header */
-@media (max-width: 480px){
-  :root{ --header-h: 88px; }
-}
-
-/* ===== Reset / base tipográfica ===== */
+/* --------- Reset base --------- */
 *{ box-sizing: border-box; }
 html, body, #root{ height: 100%; }
-
-html{
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-}
-
+html{ -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Inter, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-  color: var(--text);
   background: var(--bg-1);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial;
   line-height: 1.4;
 }
 
-#root{
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(12px, 2vw, 24px);
+/* Contenido principal */
+main{
+  position: relative;
+  z-index: 3;            /* por delante de los bordes decorativos */
+  max-width: 1200px;
+  margin: 16px auto;
+  padding: 0 12px 24px;
 }
 
-/* ===== Utilidades ===== */
-h1,h2,h3,h4{ margin: 0 0 .5rem; line-height: 1.2; }
-p{ margin: 0 0 .75rem; color: var(--text); }
-small, .muted{ color: var(--muted); }
-.hidden{ display:none!important; }
-.sr-only{
-  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
-}
+/* =======================================================
+   CABECERO “AULA” (nuevo)
+   ======================================================= */
 
-/* >>> Colchón bajo el cabecero para que el contenido no quede tapado */
-.page--withHeader{
-  padding-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
-}
-
-/* (Opcional) Si tu componente header usa esta clase, le fijamos altura */
-.app-header{
-  height: var(--header-h);
-}
-
-/* ========================================
-   CABECERA + MENÚ (versión pro “glass”)
-   ======================================== */
-
-/* Contenedor del header (sticky, con vidrio y brillo) */
-.topbar{
+.school-header{
   position: sticky;
   top: 0;
   z-index: 10000;
-  padding: 14px;
-  margin-bottom: 14px;
-  border-radius: 18px;
-
-  /* Fondo con glassmorphism sobre un degradado */
-  background:
-    linear-gradient(135deg, color-mix(in srgb, white 65%, transparent) 0%, color-mix(in srgb, white 55%, transparent) 100%);
-  backdrop-filter: blur(10px) saturate(1.1);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1);
-
-  /* Borde y sombra “neón” sutil */
-  border: 1px solid color-mix(in srgb, var(--header-grad-2) 24%, #ffffff 76%);
-  box-shadow:
-    0 10px 30px rgba(16, 24, 40, .12),
-    0 0 0 1px rgba(255,255,255,.35) inset;
 }
 
-/* Franja superior fina con degradado corporativo */
-.topbar::before{
+/* Cinta rosa superior (fija) */
+.school-header__bg{
+  height: 86px;
+  background: linear-gradient(135deg, var(--pink-1) 0%, var(--pink-2) 100%);
+  box-shadow: inset 0 -2px 0 rgba(255,255,255,.35);
+}
+
+/* Tarjeta centrada del header */
+.school-bar{
+  max-width: 1160px;
+  margin: -46px auto 12px;          /* flota sobre la cinta */
+  padding: 12px 16px;
+  border-radius: 22px;
+  background: color-mix(in srgb, #ffffff 72%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.6);
+  box-shadow: var(--shadow-xl), 0 1px 0 rgba(255,255,255,.85) inset;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Cartel del título */
+.school-brand{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg,#fff 0%, #f7f7ff 100%);
+  border: 1px solid var(--soft-border);
+  box-shadow: 0 8px 18px rgba(0,0,0,.06);
+}
+.school-brand__chalk{
+  font-family: 'Dancing Script', cursive;
+  font-size: clamp(26px, 4vw, 38px);
+  line-height: 1;
+  color: #111827;
+  text-shadow: 0 1px 0 #fff, 0 2px 0 rgba(0,0,0,.06);
+}
+
+/* Navegación */
+.school-nav{
+  display:flex;
+  gap: 12px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap: wrap;
+}
+.school-nav__item{
+  position: relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width: 110px;
+  height: 48px;
+  padding: 0 16px;
+  text-decoration:none;
+  color: var(--text);
+  font-weight: 900;
+  border: none;
+  transform: translateZ(0);
+  transition: transform .08s ease, box-shadow .2s ease, filter .2s ease;
+}
+.school-nav__item .btn-label{ position: relative; z-index: 3; }
+.school-nav__item:hover{ transform: translateY(-1px); filter: brightness(1.02); }
+.school-nav__item.is-active{ filter: saturate(1.05) contrast(1.02); }
+
+/* ---- Botón LÁPIZ (Agenda) ---- */
+.btn-pencil{
+  border-radius: 999px;
+  padding: 0 22px;
+  background: linear-gradient(90deg,#fde68a 0%, #fbbf24 70%);
+  color:#111827;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 10px 22px rgba(251,191,36,.30);
+}
+/* mina */
+.btn-pencil::before{
   content:"";
-  position:absolute; inset:0; border-radius:18px; pointer-events:none;
-  background: linear-gradient(90deg, var(--header-grad-1), var(--header-grad-2));
-  opacity:.18;
-  mask: linear-gradient(#000 0 6px, transparent 0);          /* sólo 6px arriba */
+  position:absolute;
+  left:-14px; top:8px; bottom:8px;
+  width: 0; height: 0;
+  border-top: 16px solid transparent;
+  border-bottom: 16px solid transparent;
+  border-right: 14px solid #111827;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,.08));
+}
+/* goma + férula */
+.btn-pencil::after{
+  content:"";
+  position:absolute;
+  right:-22px; top:0; bottom:0;
+  width: 22px;
+  background:
+    linear-gradient(180deg,#fecaca 0%, #fda4af 60%) 0/100% 60% no-repeat,
+    linear-gradient(180deg,#e5e7eb 0%, #d1d5db 100%) 0/100% 40% no-repeat;
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.05);
+}
+.btn-pencil.is-active{
+  background: linear-gradient(90deg,#fbbf24 0%, #f59e0b 80%);
+  color:#fff;
+  box-shadow: 0 12px 26px rgba(245,158,11,.45);
 }
 
-/* Layout interno centrado */
-.topbar.topbar--center{
-  display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center;
+/* ---- Botón REGLA (Alumnos) — sin rayas molestas ---- */
+.btn-ruler{
+  border-radius: 14px;
+  background: linear-gradient(180deg,#fef3c7 0%, #fde68a 100%);
+  border: 1px solid #f59e0b;
+  box-shadow: inset 0 8px 18px rgba(245,158,11,.18), var(--shadow-s);
+}
+.btn-ruler.is-active{
+  background: linear-gradient(180deg,#f59e0b 0%, #fbbf24 100%);
+  color:#fff;
 }
 
-.logo{
-  margin:0;
-  font-weight:900;
-  letter-spacing:.2px;
-  background: linear-gradient(90deg, var(--header-grad-1), var(--header-grad-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;                      /* texto con degradado */
-  text-shadow: 0 1px 0 rgba(255,255,255,.25);
-  font-size: clamp(22px, 3.2vw, 30px);
+/* ---- Botón SACAPUNTAS (Pagos) ---- */
+.btn-sharpener{
+  border-radius: 12px;
+  background: linear-gradient(180deg,#dbeafe 0%, #93c5fd 100%);
+  border: 1px solid #60a5fa;
+  box-shadow: inset 0 8px 18px rgba(59,130,246,.25), var(--shadow-s);
+}
+.btn-sharpener.is-active{
+  background: linear-gradient(180deg,#60a5fa 0%, #3b82f6 100%);
+  color:#fff;
 }
 
-/* Menú */
-.nav{ display:flex; gap:.6rem; flex-wrap:wrap; }
-.nav.nav--center{ justify-content:center; }
-
-/* Botón base (mejor contraste) */
-.nav-item{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:.62rem 1.1rem; border-radius:9999px;
-  text-decoration:none; font-weight:700; letter-spacing:.1px;
-  color:#0f172a; background:#ffffff;
-  border:1px solid #e8e9f4;
-  box-shadow: 0 6px 16px rgba(2,6,23,.06);
-  transition: transform .08s ease, box-shadow .18s ease, background .18s ease, color .12s ease;
+/* ---- Botón PIZARRA (Informes) ---- */
+.btn-board{
+  border-radius: 10px;
+  color:#f8fafc;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.05)) 0/100% 100%,
+    repeating-linear-gradient(0deg, #14532d 0 1px, #0f5130 1px 24px) 0/100% 100%,
+    #0f5130;
+  border: 2px solid #14532d;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), var(--shadow-s);
 }
-.nav-item:hover{ transform: translateY(-1px); box-shadow: 0 10px 22px rgba(2,6,23,.12); }
-
-/* Aros de color por pestaña (más elegantes) */
-.nav.nav--center .nav-item:nth-child(1):not(.nav-item--active){
-  box-shadow: 0 6px 16px rgba(2,6,23,.06),
-              0 0 0 7px color-mix(in srgb, var(--chip1) var(--chip-alpha), transparent);
-}
-.nav.nav--center .nav-item:nth-child(2):not(.nav-item--active){
-  box-shadow: 0 6px 16px rgba(2,6,23,.06),
-              0 0 0 7px color-mix(in srgb, var(--chip2) var(--chip-alpha), transparent);
-}
-.nav.nav--center .nav-item:nth-child(3):not(.nav-item--active){
-  box-shadow: 0 6px 16px rgba(2,6,23,.06),
-              0 0 0 7px color-mix(in srgb, var(--chip3) var(--chip-alpha), transparent);
-}
-.nav.nav--center .nav-item:nth-child(4):not(.nav-item--active){
-  box-shadow: 0 6px 16px rgba(2,6,23,.06),
-              0 0 0 7px color-mix(in srgb, var(--chip4) var(--chip-alpha), transparent);
+.btn-board.is-active{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.07)) 0/100% 100%,
+    repeating-linear-gradient(0deg, #0b3f22 0 1px, #0a3a1f 1px 24px) 0/100% 100%,
+    #0a3a1f;
+  color:#fff;
+  border-color:#0e3a20;
 }
 
-/* Activo: pastilla con degradado y brillo */
-.nav-item--active{
-  color:#fff !important;
-  background: linear-gradient(135deg, var(--header-grad-1), var(--header-grad-2));
-  border-color: color-mix(in srgb, var(--header-grad-2) 45%, #fff 55%);
-  box-shadow:
-    0 12px 28px var(--header-glow),
-    0 0 0 1px rgba(255,255,255,.25) inset;
-}
-
-/* El contenido debajo del header: un poco de aire adicional */
-.content{ position:relative; z-index:0; padding-top:.65rem; }
-
-/* Mobile tweaks: botones cómodos y header más denso */
-@media (max-width: 480px){
-  .topbar{ padding: 12px; border-radius:16px; }
-  .nav{ gap:.5rem; }
-  .nav-item{ padding:.58rem .95rem; font-weight:800; }
-}
-
-/* ===== Hero/banner interno opcional ===== */
-.hero, .agenda-hero, .agenda-title{ position:relative; z-index:0; margin-top:.5rem; }
-.hero-banner{
-  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
-  color:#fff; padding: 24px; border-radius: 18px; box-shadow: var(--shadow);
-}
-
-/* ===== Tarjetas/Panales ===== */
-.card{
-  background: var(--card);
-  border: 1px solid #eee;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: clamp(12px, 2vw, 20px);
-}
-
-/* ===== Botones generales ===== */
-button, .btn{
-  appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  border: 1px solid #e5e7eb; background: white; color: var(--text);
-  border-radius: 12px; padding: 8px 12px; font-size: 16px; line-height: 1;
-  cursor: pointer;
-  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
-}
-button:hover, .btn:hover{ background:#f9fafb; }
-button:active, .btn:active{ transform: translateY(1px); }
-button:disabled, .btn:disabled{ opacity:.6; cursor:not-allowed; }
-
-.btn-primary{
-  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
-  color: #fff; border-color: #f59fbc;
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--brand-2) 35%, transparent);
-}
-.btn-primary:hover{ filter: brightness(1.02); }
-.btn-danger{ background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
-.btn-success{ background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
-.buttons{ display:flex; gap:8px; flex-wrap:wrap; }
-.buttons > *{ white-space: nowrap; }
-
-/* ===== Inputs / Selects ===== */
-input, select, textarea{
-  border:1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px;
-  font-size: 16px; outline: none; background: #fff; color: var(--text);
-}
-input:focus, select:focus, textarea:focus{
-  border-color: #d946ef; box-shadow: 0 0 0 3px rgba(217,70,239,.15);
-}
-/* Quitar flechas number */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
-input[type="number"]{ appearance: none; -moz-appearance: textfield; }
-
-/* ===== Tablas (día) ===== */
-table{ width:100%; border-collapse: separate; border-spacing: 0 8px; }
-th, td{ text-align:left; vertical-align: top; }
-thead th{ font-weight:700; color:#475569; font-size:14px; padding: 12px 16px; }
-tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-radius: 12px; }
-
-/* Píldoras de eventos */
-.pill{
-  display:inline-flex; align-items:center; gap:6px;
-  padding:8px 12px; border-radius:12px; color:#fff; font-weight:600; font-size:13px;
-}
-
-/* ===== Calendario mensual (base) ===== */
-.calendar-grid{ display:grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap:6px; }
-.calendar-day{
-  text-align:left; padding:10px; border-radius:12px; border:1px solid #e2e8f0;
-  background:#fff; transition: background .15s ease, border-color .15s ease;
-}
-.calendar-day.is-selected{ background:#fdf2f8; border-color:var(--brand-2); }
-.calendar-day.is-holiday{ background:#fee2e2; border-color:#f87171; }
-.calendar-day.is-inactive{ opacity:.6; }
-
-/* Badges pequeños */
-.badge{ display:inline-block; border-radius:12px; padding:2px 6px; font-size:10px; font-weight:700; color:#fff; }
-.badge-pink{ background:var(--brand-2); } .badge-purple{ background:#7c3aed; }
-
-/* ===== Aside resumen ===== */
-.aside{ background:#fafbfc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; }
-
-/* ===== Modal + bloqueo de scroll ===== */
-.body-lock{ overflow: hidden; touch-action: none; }
-
-/* >>> IMPORTANTE: modal por encima del topbar (z-index mayor) */
-.modal-backdrop{
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.25);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  z-index: 10020; /* > topbar */
-}
-.modal{
-  background: #fff; border-radius: 16px; padding: 16px;
-  box-shadow: 0 25px 50px rgba(0,0,0,.25);
-  z-index: 10030; /* > backdrop */
-
-  position: fixed; left: 0; top: 0; transform: none;
-  margin: 16px; width: auto; max-height: calc(100dvh - 32px);
-  overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-}
-
-/* ===== Scrollbar suave ===== */
-*{ scrollbar-width: thin; scrollbar-color: #e9d5ff transparent; }
-*::-webkit-scrollbar{ height:10px; width:10px; }
-*::-webkit-scrollbar-thumb{ background:#e9d5ff; border-radius:999px; }
-*::-webkit-scrollbar-track{ background:transparent; }
-
-/* ===== Responsivo ===== */
-@media (max-width: 900px){ :root{ --agenda-cols: 1fr; } }
-@media (max-width: 600px){ .modal{ margin: 12px; max-height: calc(100dvh - 24px); } }
-@media (max-width: 480px){
-  .buttons{ gap:6px; }
-  button, .btn{ padding: 9px 10px; font-size: 16px; }
-  input, select{ width: 100%; }
-  thead th{ font-size:13px; padding:10px 12px; }
-  tbody td{ padding:10px 12px; }
-}
-
-/* ===== Modo impresión ===== */
-@media print{
-  :root{ --shadow:none; }
-  *{ box-shadow:none!important; text-shadow:none!important; }
-  .no-print{ display:none!important; }
-  body{ background:#fff; }
-  a::after{ content:" (" attr(href) ")"; font-size:10px; color:#555; }
-}
-
-/* === Calendar Pro — look más profesional y amigable === */
-.calendar-shell{
-  background: linear-gradient(180deg, #fde7f2 0%, #ffffff 35%);
-  border: 1px solid #f1e6ff;
-  border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(82,0,120,.08);
-  padding: 14px;
-}
-
-.calendar-header{
-  display:flex; align-items:center; justify-content:space-between; gap:10px;
-  background:#fff; border:1px solid #eee; border-radius:14px; padding:10px 12px;
-  position: sticky; top:0; z-index: 20;
-}
-.calendar-header .title{
-  font-weight:900; font-size:18px; letter-spacing:.3px;
-}
-.calendar-header .controls{ display:flex; gap:8px; }
-.calendar-header .btn{
-  border:1px solid #e5e7eb; background:#fff; border-radius:12px; padding:8px 12px; cursor:pointer;
-}
-.calendar-header .btn:hover{ background:#f8fafc; }
-.calendar-header .today{
-  background:linear-gradient(135deg,#f472b6 0%,#ec4899 100%); color:#fff; border-color:#f59fbc;
-  box-shadow:0 6px 20px rgba(236,72,153,.25);
-}
-
-/* Rejilla */
-.calendar-grid{
-  display:grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap:8px;
-  margin-top:12px;
-}
-.calendar-day{
-  background:#fff; border:1px solid #eef2f7; border-radius:12px; padding:10px;
-  transition: box-shadow .15s ease, transform .04s ease, border-color .15s ease;
-  min-height:84px;
-}
-.calendar-day:hover{ box-shadow:0 10px 20px rgba(0,0,0,.05); transform: translateY(-1px); }
-.calendar-day .dow{ font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; }
-.calendar-day .date{
-  display:inline-flex; align-items:center; justify-content:center;
-  width:28px; height:28px; border-radius:999px; font-weight:800;
-  margin-top:6px;
-}
-.calendar-day.is-today .date{ background:#f0f9ff; color:#0284c7; }
-.calendar-day.is-selected{ border-color:#ec4899; box-shadow:0 0 0 3px rgba(236,72,153,.15) inset; }
-.calendar-day.is-inactive{ opacity:.55; }
-.calendar-day.is-weekend{ background:#fafafa; }
-
-/* Badges de eventos */
-.badge{
-  display:inline-block; border-radius:999px; padding:3px 8px; font-size:11px; font-weight:800; margin-top:6px;
-}
-.badge-pink{ background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
-.badge-purple{ background:#ede9fe; color:#6d28d9; border:1px solid #ddd6fe; }
-
-/* =========================
-   MÓVIL: ancho completo + tamaños cómodos
-   ========================= */
-@media (max-width: 480px){
-  /* Texto base un poco mayor y estable en iOS */
-  html { font-size: 17px; }
-  html, body { margin:0; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-
-  /* El contenedor principal NO debe estrecharse */
-  #root,
-  main,
-  .app,
-  .page,
-  .container,
-  .content,
-  .panel,
-  .card {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+/* Responsive del header */
+@media (max-width: 700px){
+  .school-bar{
+    grid-template-columns: 1fr;
+    text-align:center;
+    gap: 8px;
+    margin: -42px 12px 8px;
   }
-
-  /* Botones y campos: mínimo 44px (accesibilidad) */
-  button, .btn,
-  input, select, textarea {
-    min-height: 44px;
-    font-size: 1rem;              /* ~17px reales */
-    line-height: 1.2;
-    border-radius: 14px;
-  }
-
-  /* Títulos y secciones más legibles */
-  h1, .title-xl { font-size: 1.35rem; }  /* aprox 23px */
-  h2, .title-lg { font-size: 1.15rem; }  /* aprox 20px */
-
-  /* Grupos de pestañas/acciones con más aire */
-  .tabs, .toolbar, .actions { gap: 10px; }
-  .tabs .btn, .toolbar .btn { padding: 10px 14px; }
+  .school-nav{ justify-content:center; gap:8px; }
+  .school-nav__item{ min-width: 96px; height: 44px; }
+  .btn-pencil{ padding: 0 18px; }
 }
 
-/* =========================
-   CALENDARIO — móvil bonito y legible
-   ========================= */
-@media (max-width: 480px){
-  /* Tarjeta del calendario */
-  .cal {
-    background: var(--card);
-    border-radius: 22px;
-    box-shadow: var(--shadow);
-    padding: 12px;
-    margin: 10px 0 16px;
-  }
-
-  /* Rejilla de días: 7 columnas */
-  .cal-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-    padding: 6px 4px 10px;
-  }
-
-  /* Días de la semana (si los usas como cabecera) */
-  .cal-dow {
-    font-size: .8rem;
-    color: var(--muted);
-    text-align: center;
-    margin-bottom: 6px;
-  }
-
-  /* Celda de día (botón tocable) */
-  .cal-day {
-    position: relative;
-    aspect-ratio: 1 / 1;           /* cuadrado perfecto */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 1rem;               /* ~17px */
-    border-radius: 14px;
-    border: 1px solid rgba(236,72,153,.18); /* rosa suave */
-    background: linear-gradient(180deg,#fff,#fff);
-    touch-action: manipulation;
-    min-height: 44px;              /* accesible al dedo */
-    user-select: none;
-  }
-  .cal-day:active { transform: scale(.98); }
-
-  /* Fuera del mes → más tenue */
-  .cal-day.is-outside { opacity: .45; }
-
-  /* Hoy → aro punteado */
-  .cal-day.is-today {
-    outline: 2px dashed var(--brand-2);
-    outline-offset: -3px;
-  }
-
-  /* Seleccionado → degradado bonito */
-  .cal-day.is-selected {
-    color: #fff;
-    border-color: transparent;
-    background: linear-gradient(135deg, var(--brand-1), var(--brand-2));
-    box-shadow: 0 8px 30px rgba(236,72,153,.35);
-  }
-
-  /* Días con eventos → punto indicador abajo */
-  .cal-day.has-events::after {
-    content: '';
-    width: 6px; height: 6px;
-    border-radius: 9999px;
-    background: var(--brand-2);
-    position: absolute;
-    bottom: 6px;
-  }
+/* =======================================================
+   ELIMINA CUALQUIER RESTO DEL HEADER ANTIGUO
+   (evita el “fantasma” borroso detrás)
+   ======================================================= */
+header.app-header,
+.app-header,
+.app-header__inner,
+.app-title,
+.topnav,
+.topbar:not(.school-header),
+.topbar:not(.school-header) .nav,
+.topbar:not(.school-header) .logo {
+  display: none !important;
+}
+.topbar:not(.school-header)::before,
+.topbar:not(.school-header)::after {
+  content: none !important;
 }
 
-/* ==========================================================
-   PARCHE FINAL: desactivar franjas/gradientes rosa antiguos
-   ========================================================== */
-
-/* Neutraliza fondos/gradientes y sombras de cabeceras/banners viejos */
+/* =======================================================
+   APAGA gradientes/bandas de cabeceras viejas
+   ======================================================= */
 .header,
 .header-bar,
 .banner,
@@ -516,33 +254,231 @@ tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-r
   border: 0 !important;
   box-shadow: none !important;
 }
-
-/* Si algún pseudo-elemento dibuja la franja, lo desactivamos */
-.header::before,
-.header::after,
-.banner::before,
-.banner::after,
-.hero::before,
-.hero::after,
-.agenda-hero::before,
-.agenda-hero::after,
-.agenda-title::before,
-.agenda-title::after {
+.header::before, .header::after,
+.banner::before, .banner::after,
+.hero::before, .hero::after,
+.agenda-hero::before, .agenda-hero::after,
+.agenda-title::before, .agenda-title::after {
   content: none !important;
 }
-
-/* Asegura que el header “glass” queda por encima y sin solaparse */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10000;
-}
-
-/* Evita que algún contenedor superior meta un degradado global */
+/* Por si algún contenedor global metía color rosa */
 body .bg-pink,
 body .header-gradient,
 body .gradient,
 body .bar,
 body .strip {
   background: transparent !important;
+}
+
+/* =======================================================
+   Utilidades suaves
+   ======================================================= */
+.card{
+  background: var(--soft-card);
+  border: 1px solid var(--soft-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-s);
+  padding: clamp(12px, 2vw, 20px);
+}
+button, .btn{
+  appearance: none;
+  border: 1px solid #e5e7eb;
+  background: #fff; color: var(--text);
+  border-radius: 12px; padding: 8px 12px; font-size: 16px;
+  cursor: pointer;
+  transition: transform .05s ease, box-shadow .15s ease, background .15s ease;
+}
+button:hover, .btn:hover{ background:#f9fafb; }
+button:active, .btn:active{ transform: translateY(1px); }
+
+/* =======================================================
+   DECORATIVE EDGES (profesora y alumnos)
+   ======================================================= */
+.edge-img{
+  position: fixed;
+  top: 120px;                 /* por debajo del header */
+  width: min(22vw, 280px);    /* responsivo */
+  max-width: 320px;
+  opacity: .18;               /* sutil */
+  pointer-events: none;
+  z-index: 1;                 /* por detrás del main (main z-index:3) */
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.08));
+}
+
+.edge-left{
+  left: max(0px, (100vw - 1200px)/2 - 260px);  /* pegado al margen container */
+}
+
+.edge-right{
+  right: max(0px, (100vw - 1200px)/2 - 260px);
+}
+
+@media (max-width: 1100px){
+  .edge-img{ width: min(28vw, 240px); opacity:.14; }
+}
+@media (max-width: 900px){
+  .edge-img{ display:none; }   /* oculto en móvil para no estorbar */
+}
+/* ==== Bordes decorativos simples y siempre visibles ==== */
+.edge-img{
+  position: fixed;
+  top: 120px;                  /* por debajo del header */
+  width: min(22vw, 260px);     /* responsivo */
+  max-width: 300px;
+  opacity: .22;                /* un pelín más visible */
+  pointer-events: none;
+  z-index: 2;                  /* por delante del fondo y detrás del main (z=3) */
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.08));
+}
+
+.edge-left{  left: 8px;  }     /* ✅ colocación directa, no se irá fuera */
+.edge-right{ right: 8px; }     /* ✅ colocación directa, no se irá fuera */
+
+@media (max-width: 1100px){
+  .edge-img{ width: min(28vw, 220px); opacity:.16; }
+}
+@media (max-width: 900px){
+  .edge-img{ display:none; }   /* oculto en móvil para no estorbar */
+}
+/* ===== Ilustraciones laterales — grandes, encima y del mismo tamaño ===== */
+.edge-img{
+  position: fixed;
+  /* separadas del header; ajusta este valor si tu cabecero ocupa más/menos */
+  top: 120px;
+
+  /* mismo tamaño para ambas, responsivo */
+  width: clamp(240px, 22vw, 360px);
+  height: clamp(240px, 22vw, 360px);
+  object-fit: contain;
+
+  /* vivacidad y relieve */
+  opacity: 1;                         /* 100% color */
+  filter: saturate(1.1) contrast(1.04) drop-shadow(0 18px 26px rgba(0,0,0,.16));
+
+  pointer-events: none;               /* no bloquean clics del calendario */
+  z-index: 6;                         /* por encima del contenido (main z-index:3) */
+}
+
+.edge-left{  left: 18px; }
+.edge-right{ right: 18px; }
+
+/* Un poco más compactas en pantallas medias */
+@media (max-width: 1300px){
+  .edge-img{
+    width: clamp(210px, 23vw, 300px);
+    height: clamp(210px, 23vw, 300px);
+  }
+}
+
+/* Ocultamos en móvil para no tapar la UI */
+@media (max-width: 980px){
+  .edge-img{ display: none; }
+}
+/* Quitar visualmente el fondo blanco del dibujo de alumnos */
+.edge-right{
+  mix-blend-mode: multiply;          /* el blanco se “funde” con el fondo */
+  filter: saturate(1.12) brightness(1.06) contrast(1.05);
+}
+
+/* Para que no afecte a otros elementos debajo en navegadores raros */
+@supports not (mix-blend-mode: multiply) {
+  .edge-right{ opacity: .92; }       /* degradado suave si no hay soporte */
+}
+/* ====== Colchón seguro bajo el header sticky ====== */
+/* Altura “segura” del header para que el contenido no quede tapado */
+:root{
+  --sticky-header-safe: 120px;  /* escritorio */
+}
+
+/* En móvil el header ocupa un poco más */
+@media (max-width: 700px){
+  :root{ --sticky-header-safe: 140px; }
+}
+
+/* Aplica el colchón al main y a contenedores típicos por si tu layout cambia */
+main{
+  padding-top: var(--sticky-header-safe) !important;
+}
+
+/* Por si alguna página usa otras envolturas */
+.page, .content, .container, .app, .panel{
+  padding-top: var(--sticky-header-safe);
+}
+
+/* Si alguna vista tiene márgenes/espaciados negativos, evitamos solapes */
+.page > :first-child,
+.content > :first-child,
+.container > :first-child,
+main > :first-child{
+  margin-top: 0;
+}
+/* ==== Repetición semanal: que no se salga en móvil ==== */
+.repeat-box{
+  border: 2px dashed #f7b2d4;     /* tu punteado */
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  overflow: hidden;               /* clave para que nada sobresalga */
+}
+
+.repeat-row{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.repeat-row .left{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Botón de opciones de recurrencia */
+.repeat-options-btn{
+  margin-left: auto;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.repeat-options-btn:hover{ background:#f8fafc; }
+
+/* Panel de opciones abierto */
+.repeat-advanced{
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #f7b2d4;
+  display: grid;
+  gap: 10px;
+}
+
+/* Chips de días */
+.repeat-weekdays{
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.repeat-weekdays button{
+  padding: 8px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+.repeat-weekdays button.active{
+  color:#fff;
+  background: linear-gradient(135deg,#ff7ab9,#e11d74);
+  border-color: #f8a1c9;
+}
+
+/* Responsive: columna y más aire en pantallas pequeñas */
+@media (max-width: 560px){
+  .repeat-box{ padding: 12px; }
+  .repeat-row{ flex-direction: column; align-items: flex-start; }
+  .repeat-options-btn{ margin-left: 0; }
+  .repeat-weekdays{ gap: 8px; }
 }

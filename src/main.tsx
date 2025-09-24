@@ -8,6 +8,7 @@ import { ToastProvider } from './ui/Toast'
 // Estilos globales
 import './index.css'
 import './App.css'
+import './logic/rollover'
 
 // Montaje raíz
 const rootEl = document.getElementById('root')!
@@ -22,4 +23,5 @@ ReactDOM.createRoot(rootEl).render(
     </HashRouter>
   </React.StrictMode>
 )
+
 

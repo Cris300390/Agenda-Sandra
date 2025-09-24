@@ -3,39 +3,57 @@ import { NavLink } from 'react-router-dom'
 
 export default function Header() {
   return (
-    <header className="topbar topbar--center app-header">
-      <h1 className="logo">Las clases de Sandra</h1>
+    <header className="school-header">
+      {/* QUITADO: la franja rosa de fondo (school-header__bg) */}
+      {/* <div className="school-header__bg" /> */}
 
-      <nav className="nav nav--center" aria-label="Principal">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
-        >
-          Agenda
-        </NavLink>
+      {/* Barra centrada */}
+      <div className="school-bar">
+        {/* Marca en “cartel de aula” */}
+        <div className="school-brand" aria-label="Las clases de Sandra">
+          <span className="school-brand__chalk">Las clases de Sandra</span>
+        </div>
 
-        <NavLink
-          to="/alumnos"
-          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
-        >
-          Alumnos
-        </NavLink>
+        {/* Menú con botones temáticos */}
+        <nav className="school-nav" aria-label="Principal">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) =>
+              'school-nav__item btn-pencil' + (isActive ? ' is-active' : '')
+            }
+          >
+            <span className="btn-label">Agenda</span>
+          </NavLink>
 
-        <NavLink
-          to="/pagos"
-          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
-        >
-          Pagos
-        </NavLink>
+          <NavLink
+            to="/alumnos"
+            className={({ isActive }) =>
+              'school-nav__item btn-ruler' + (isActive ? ' is-active' : '')
+            }
+          >
+            <span className="btn-label">Alumnos</span>
+          </NavLink>
 
-        <NavLink
-          to="/informes"
-          className={({ isActive }) => 'nav-item' + (isActive ? ' nav-item--active' : '')}
-        >
-          Informes
-        </NavLink>
-      </nav>
+          <NavLink
+            to="/pagos"
+            className={({ isActive }) =>
+              'school-nav__item btn-sharpener' + (isActive ? ' is-active' : '')
+            }
+          >
+            <span className="btn-label">Pagos</span>
+          </NavLink>
+
+          <NavLink
+            to="/informes"
+            className={({ isActive }) =>
+              'school-nav__item btn-board' + (isActive ? ' is-active' : '')
+            }
+          >
+            <span className="btn-label">Informes</span>
+          </NavLink>
+        </nav>
+      </div>
     </header>
   )
 }
