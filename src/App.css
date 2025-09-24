@@ -32,6 +32,18 @@
 
   /* Layout agenda escritorio */
   --agenda-cols: 1fr 320px;
+
+  /* Alto del cabecero y paleta del header “glass” */
+  --header-h: 72px;
+  --header-grad-1:#7c3aed;   /* morado vibrante */
+  --header-grad-2:#ec4899;   /* magenta/rosa */
+  --header-glow: rgba(236,72,153,.35);
+  --chip-alpha: 14%;
+}
+
+/* En móvil subimos un pelín la altura del header */
+@media (max-width: 480px){
+  :root{ --header-h: 88px; }
 }
 
 /* ===== Reset / base tipográfica ===== */
@@ -66,91 +78,121 @@ small, .muted{ color: var(--muted); }
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
 }
 
+/* >>> Colchón bajo el cabecero para que el contenido no quede tapado */
+.page--withHeader{
+  padding-top: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+}
+
+/* (Opcional) Si tu componente header usa esta clase, le fijamos altura */
+.app-header{
+  height: var(--header-h);
+}
+
 /* ========================================
-   CABECERA + MENÚ (versión profesional)
+   CABECERA + MENÚ (versión pro “glass”)
    ======================================== */
+
+/* Contenedor del header (sticky, con vidrio y brillo) */
 .topbar{
   position: sticky;
   top: 0;
-  z-index: 10000; /* alto, pero el modal va más arriba */
+  z-index: 10000;
+  padding: 14px;
+  margin-bottom: 14px;
   border-radius: 18px;
-  padding: 16px 14px;
-  margin-bottom: 12px;
 
-  /* Fondo suave (no rosa) para no chocar con el banner */
-  background: linear-gradient(135deg, #f7f5ff 0%, #eef2ff 100%);
-  border: 1px solid #e9d5ff;
-  box-shadow: 0 12px 32px rgba(99,102,241,.10);
+  /* Fondo con glassmorphism sobre un degradado */
+  background:
+    linear-gradient(135deg, color-mix(in srgb, white 65%, transparent) 0%, color-mix(in srgb, white 55%, transparent) 100%);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+
+  /* Borde y sombra “neón” sutil */
+  border: 1px solid color-mix(in srgb, var(--header-grad-2) 24%, #ffffff 76%);
+  box-shadow:
+    0 10px 30px rgba(16, 24, 40, .12),
+    0 0 0 1px rgba(255,255,255,.35) inset;
 }
 
+/* Franja superior fina con degradado corporativo */
+.topbar::before{
+  content:"";
+  position:absolute; inset:0; border-radius:18px; pointer-events:none;
+  background: linear-gradient(90deg, var(--header-grad-1), var(--header-grad-2));
+  opacity:.18;
+  mask: linear-gradient(#000 0 6px, transparent 0);          /* sólo 6px arriba */
+}
+
+/* Layout interno centrado */
 .topbar.topbar--center{
-  display:flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center;
 }
 
 .logo{
   margin:0;
+  font-weight:900;
+  letter-spacing:.2px;
+  background: linear-gradient(90deg, var(--header-grad-1), var(--header-grad-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;                      /* texto con degradado */
+  text-shadow: 0 1px 0 rgba(255,255,255,.25);
   font-size: clamp(22px, 3.2vw, 30px);
-  letter-spacing: .2px;
 }
 
-/* Menú centrado */
-.nav{ display:flex; gap:.75rem; flex-wrap:wrap; }
+/* Menú */
+.nav{ display:flex; gap:.6rem; flex-wrap:wrap; }
 .nav.nav--center{ justify-content:center; }
 
-/* Botón base (inactivo): blanco con “aura” pastel por sección */
+/* Botón base (mejor contraste) */
 .nav-item{
-  display:inline-flex;
-  align-items:center;
-  padding:.58rem 1.05rem;
-  border-radius:9999px;
-  text-decoration:none;
-  font-weight:600;
-  color: #111827;
-  background:#fff;
-  border:1px solid #ececf5;
-  box-shadow: 0 4px 14px rgba(0,0,0,.06);
-  transition: transform .06s ease, box-shadow .22s ease, filter .18s ease, background .18s ease;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:.62rem 1.1rem; border-radius:9999px;
+  text-decoration:none; font-weight:700; letter-spacing:.1px;
+  color:#0f172a; background:#ffffff;
+  border:1px solid #e8e9f4;
+  box-shadow: 0 6px 16px rgba(2,6,23,.06);
+  transition: transform .08s ease, box-shadow .18s ease, background .18s ease, color .12s ease;
 }
+.nav-item:hover{ transform: translateY(-1px); box-shadow: 0 10px 22px rgba(2,6,23,.12); }
 
-/* Aros pastel por orden de pestaña (visibles pero elegantes) */
+/* Aros de color por pestaña (más elegantes) */
 .nav.nav--center .nav-item:nth-child(1):not(.nav-item--active){
-  box-shadow: 0 4px 14px rgba(0,0,0,.06),
-              0 0 0 6px color-mix(in srgb, var(--chip1) 12%, transparent);
+  box-shadow: 0 6px 16px rgba(2,6,23,.06),
+              0 0 0 7px color-mix(in srgb, var(--chip1) var(--chip-alpha), transparent);
 }
 .nav.nav--center .nav-item:nth-child(2):not(.nav-item--active){
-  box-shadow: 0 4px 14px rgba(0,0,0,.06),
-              0 0 0 6px color-mix(in srgb, var(--chip2) 12%, transparent);
+  box-shadow: 0 6px 16px rgba(2,6,23,.06),
+              0 0 0 7px color-mix(in srgb, var(--chip2) var(--chip-alpha), transparent);
 }
 .nav.nav--center .nav-item:nth-child(3):not(.nav-item--active){
-  box-shadow: 0 4px 14px rgba(0,0,0,.06),
-              0 0 0 6px color-mix(in srgb, var(--chip3) 12%, transparent);
+  box-shadow: 0 6px 16px rgba(2,6,23,.06),
+              0 0 0 7px color-mix(in srgb, var(--chip3) var(--chip-alpha), transparent);
 }
 .nav.nav--center .nav-item:nth-child(4):not(.nav-item--active){
-  box-shadow: 0 4px 14px rgba(0,0,0,.06),
-              0 0 0 6px color-mix(in srgb, var(--chip4) 12%, transparent);
+  box-shadow: 0 6px 16px rgba(2,6,23,.06),
+              0 0 0 7px color-mix(in srgb, var(--chip4) var(--chip-alpha), transparent);
 }
 
-/* Hover elegante en inactivos */
-.nav-item:hover:not(.nav-item--active){
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(0,0,0,.10),
-              0 0 0 7px color-mix(in srgb, #94a3b8 14%, transparent);
-  filter: brightness(1.02);
-}
-
-/* Activo: degradado de marca con texto blanco */
+/* Activo: pastilla con degradado y brillo */
 .nav-item--active{
-  background: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
   color:#fff !important;
-  border-color: color-mix(in srgb, var(--brand-2) 40%, #ffffff 60%);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand-2) 35%, transparent);
+  background: linear-gradient(135deg, var(--header-grad-1), var(--header-grad-2));
+  border-color: color-mix(in srgb, var(--header-grad-2) 45%, #fff 55%);
+  box-shadow:
+    0 12px 28px var(--header-glow),
+    0 0 0 1px rgba(255,255,255,.25) inset;
 }
 
-/* El contenido nunca tapa la barra */
-.content{ position: relative; z-index: 0; padding-top: .5rem; }
+/* El contenido debajo del header: un poco de aire adicional */
+.content{ position:relative; z-index:0; padding-top:.65rem; }
+
+/* Mobile tweaks: botones cómodos y header más denso */
+@media (max-width: 480px){
+  .topbar{ padding: 12px; border-radius:16px; }
+  .nav{ gap:.5rem; }
+  .nav-item{ padding:.58rem .95rem; font-weight:800; }
+}
 
 /* ===== Hero/banner interno opcional ===== */
 .hero, .agenda-hero, .agenda-title{ position:relative; z-index:0; margin-top:.5rem; }
@@ -335,6 +377,7 @@ tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-r
 }
 .badge-pink{ background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
 .badge-purple{ background:#ede9fe; color:#6d28d9; border:1px solid #ddd6fe; }
+
 /* =========================
    MÓVIL: ancho completo + tamaños cómodos
    ========================= */
@@ -377,6 +420,7 @@ tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-r
   .tabs, .toolbar, .actions { gap: 10px; }
   .tabs .btn, .toolbar .btn { padding: 10px 14px; }
 }
+
 /* =========================
    CALENDARIO — móvil bonito y legible
    ========================= */
@@ -450,4 +494,55 @@ tbody td{ background: #fff; border: 1px solid #eee; padding: 12px 14px; border-r
     position: absolute;
     bottom: 6px;
   }
+}
+
+/* ==========================================================
+   PARCHE FINAL: desactivar franjas/gradientes rosa antiguos
+   ========================================================== */
+
+/* Neutraliza fondos/gradientes y sombras de cabeceras/banners viejos */
+.header,
+.header-bar,
+.banner,
+.site-header,
+.main-header,
+.topgrad,
+.pink-strip,
+.hero,
+.agenda-hero,
+.agenda-title,
+.hero-banner {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Si algún pseudo-elemento dibuja la franja, lo desactivamos */
+.header::before,
+.header::after,
+.banner::before,
+.banner::after,
+.hero::before,
+.hero::after,
+.agenda-hero::before,
+.agenda-hero::after,
+.agenda-title::before,
+.agenda-title::after {
+  content: none !important;
+}
+
+/* Asegura que el header “glass” queda por encima y sin solaparse */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10000;
+}
+
+/* Evita que algún contenedor superior meta un degradado global */
+body .bg-pink,
+body .header-gradient,
+body .gradient,
+body .bar,
+body .strip {
+  background: transparent !important;
 }

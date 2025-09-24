@@ -151,11 +151,8 @@ export default function AlumnosPage() {
     const note = fNote.trim()
 
     if (editing) {
-      // EDITAR
       const updates: any = {
-        name,
-        active: fActive,
-        isActive: fActive,
+        name, active: fActive, isActive: fActive,
         subjects,
         phone: phone || undefined,
         contact: contact || undefined,
@@ -165,13 +162,9 @@ export default function AlumnosPage() {
       await (db as any).students.update(editing.id as number, updates)
       toast.success('Cambios guardados', name)
     } else {
-      // CREAR
       const newStudent: any = {
-        name,
-        active: fActive,
-        isActive: fActive,
-        subjects,
-        createdAt: new Date().toISOString(),
+        name, active: fActive, isActive: fActive,
+        subjects, createdAt: new Date().toISOString(),
         ...(phone ? { phone } : {}),
         ...(contact ? { contact } : {}),
         ...(priceNum != null ? { price: priceNum } : {}),
@@ -185,11 +178,11 @@ export default function AlumnosPage() {
     await load()
   }
 
-  // ===== estilos =====
+  // ===== estilos (renombrados para no chocar con el header global) =====
   const css = `
     .alumnos-wrap { display:grid; gap: 16px; }
-    .topbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
-    .topbar-right { margin-left:auto; display:flex; gap:8px; }
+    .alumnos-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+    .alumnos-toolbar-right { margin-left:auto; display:flex; gap:8px; }
     .muted { color:#6b7280; }
 
     .tabs { display:flex; gap:8px; }
@@ -246,7 +239,7 @@ export default function AlumnosPage() {
       background:rgba(0,0,0,.25);
       -webkit-backdrop-filter: blur(2px);
       backdrop-filter: blur(2px);
-      z-index:10020;                 /* antes 9998 */
+      z-index:10020;
     }
     .modal{
       position:fixed; left:50%; top:50%;
@@ -254,7 +247,7 @@ export default function AlumnosPage() {
       width:min(720px, 92vw);
       background:#fff; border:1px solid #eee; border-radius:16px;
       padding:16px; box-shadow:0 25px 50px rgba(0,0,0,.25);
-      z-index:10030;                 /* antes 9999 */
+      z-index:10030;
       display:grid; gap:12px;
     }
     .form-grid{ display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
@@ -268,8 +261,8 @@ export default function AlumnosPage() {
     <div className="alumnos-wrap">
       <style>{css}</style>
 
-      {/* Topbar */}
-      <div className="topbar">
+      {/* Toolbar (renombrada) */}
+      <div className="alumnos-toolbar">
         <div className="muted">
           <strong>{counts.total}</strong> en total · <strong>{counts.activos}</strong> activos · <strong>{counts.inactivos}</strong> inactivos
         </div>
@@ -288,7 +281,7 @@ export default function AlumnosPage() {
           <button className={`chip-tab ${tab==='inactive'?'chip-tab--active':''}`} onClick={() => setTab('inactive')}>Inactivos</button>
         </div>
 
-        <div className="topbar-right">
+        <div className="alumnos-toolbar-right">
           <button className="btn btn-primary" onClick={openCreate}>Nuevo alumno</button>
         </div>
       </div>

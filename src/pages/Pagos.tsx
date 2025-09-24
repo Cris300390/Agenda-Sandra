@@ -299,7 +299,7 @@ export default function PagosPage() {
     (name || '?').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase()
 
   return (
-    <div className="stack">
+    <div className="stack page--withHeader">
       <style>{scoped}</style>
 
       {/* Alumno + formulario + botones deshacer */}
