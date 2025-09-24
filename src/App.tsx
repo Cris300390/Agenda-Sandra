@@ -1,68 +1,20 @@
-// src/App.tsx
-import { Suspense, lazy, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import Header from './components/Header'
-import DecorativeEdges from './components/DecorativeEdges' // Ilustraciones laterales
-
-// Carga diferida (mejor rendimiento)
-const Agenda   = lazy(() => import('./pages/Agenda'))
-const Alumnos  = lazy(() => import('./pages/Alumnos'))
-const Pagos    = lazy(() => import('./pages/Pagos'))
-const Informes = lazy(() => import('./pages/Informes'))
+import { Routes, Route, Link, Navigate } from 'react-router-dom'
 
 export default function App() {
-  // Arranque: si existe una función global para rollover mensual, la ejecutamos 1 vez.
-  // (Por ejemplo, podrías definir window.__monthlyRollover en tu capa de datos.)
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const maybeRollover = (window as any).__monthlyRollover
-        if (typeof maybeRollover === 'function') {
-          await maybeRollover()
-        }
-      } catch (err) {
-        console.warn('Rollover mensual: salto por error/no disponible.', err)
-      }
-    })()
-  }, [])
-
   return (
-    <div>
-      {/* Cabecero nuevo */}
-      <Header />
-
-      {/* Ilustraciones laterales (profe + alumnos) */}
-      <DecorativeEdges />
-
-      {/* Contenido principal */}
-      <main style={mainStyles}>
-        <Suspense fallback={<div style={fallbackStyles}>Cargando…</div>}>
-          <Routes>
-            <Route path="/" element={<Agenda />} />
-            <Route path="/alumnos" element={<Alumnos />} />
-            <Route path="/pagos" element={<Pagos />} />
-            <Route path="/informes" element={<Informes />} />
-            {/* Cualquier ruta desconocida vuelve a Agenda */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
+    <div className="main">
+      <h1>Agenda Sandra</h1>
+      <p>Despliegue correcto. Ahora conectamos tus pantallas reales.</p>
+      <nav style={{ display:'flex', gap:12, margin:'12px 0' }}>
+        <Link to="/agenda">Agenda</Link>
+        <Link to="/alumnos">Alumnos</Link>
+      </nav>
+      <Routes>
+        <Route path="/" element={<Navigate to="/agenda" replace />} />
+        <Route path="/agenda" element={<div>📅 Agenda OK</div>} />
+        <Route path="/alumnos" element={<div>👩‍🎓 Alumnos OK</div>} />
+        <Route path="*" element={<div>404 (ruta desconocida)</div>} />
+      </Routes>
     </div>
   )
-}
-
-/* ---------- Estilos mínimos del contenedor ---------- */
-const mainStyles: React.CSSProperties = {
-  maxWidth: 1200,
-  margin: '16px auto',
-  padding: '0 12px 24px',
-  position: 'relative', // el main queda por delante de los bordes decorativos
-  zIndex: 3,
-}
-
-const fallbackStyles: React.CSSProperties = {
-  padding: 20,
-  background: '#fff',
-  borderRadius: 12,
-  border: '1px solid #f1f5f9',
 }
