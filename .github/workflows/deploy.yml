@@ -1,9 +1,10 @@
-name: Deploy Vite to GitHub Pages
+name: Implementar Vite en páginas de GitHub
 
 on:
   push:
-    branches: [ dev-sandra ]
-  workflow_dispatch:
+    branches:
+      - principal        # dispara al hacer push/merge a principal
+  workflow_dispatch:     # permite lanzarlo a mano
 
 permissions:
   contents: read
@@ -25,6 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install deps
         run: npm ci
@@ -42,8 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
-        id: deploy
+        id: deployment
         uses: actions/deploy-pages@v4
