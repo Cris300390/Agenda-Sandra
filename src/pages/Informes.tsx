@@ -3,156 +3,111 @@ import { useEffect, useMemo, useState } from 'react'
 import { db } from '../db'
 import type { Student } from '../db'
 import {
-  eachDayOfInterval, endOfMonth, endOfYear, format, isWithinInterval,
-  parseISO, startOfMonth, startOfYear
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  subMonths,
+  endOfMonth as eom,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { db } from '../db'
 
-// Recharts
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ReferenceLine
-} from 'recharts'
-
-/* =========================================
-   Mini UI: Confirmación + Toast elegantes
-   ========================================= */
-function ConfirmModal({
-  open,
-  title = '¿Estás seguro?',
-  message,
-  confirmText = 'Sí, borrar',
-  cancelText = 'Cancelar',
-  tone = 'danger',
-  onCancel,
-  onConfirm,
-}: {
-  open: boolean;
-  title?: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  tone?: 'danger' | 'primary';
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  if (!open) return null
-  const color =
-    tone === 'danger'
-      ? 'linear-gradient(135deg,#ef4444,#dc2626)'
-      : 'linear-gradient(135deg,#6366f1,#4f46e5)'
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,.35)',
-        backdropFilter: 'blur(2px)',
-        zIndex: 9999,
-        display: 'grid',
-        placeItems: 'center',
-        padding: 16,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(520px, 96vw)',
-          background: '#fff',
-          borderRadius: 16,
-          boxShadow: '0 25px 60px rgba(0,0,0,.25)',
-          border: '1px solid #f1f5f9',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            padding: '14px 16px',
-            background: 'linear-gradient(135deg,#ffe4f1,#f8fafc)',
-            borderBottom: '1px solid #f1f5f9',
-          }}
-        >
-          <strong style={{ fontSize: 16 }}>{title}</strong>
-        </div>
-        <div style={{ padding: 16, fontSize: 14, color: '#334155' }}>{message}</div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            justifyContent: 'flex-end',
-            padding: 12,
-            borderTop: '1px solid #f1f5f9',
-            background: '#fbfbff',
-          }}
-        >
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '10px 14px',
-              borderRadius: 12,
-              border: '1px solid #e5e7eb',
-              background: '#fff',
-              cursor: 'pointer',
-              fontWeight: 700,
-            }}
-          >
-            {cancelText}
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: '10px 14px',
-              borderRadius: 12,
-              border: '1px solid transparent',
-              background: color,
-              color: '#fff',
-              cursor: 'pointer',
-              fontWeight: 900,
-              boxShadow: '0 8px 20px rgba(0,0,0,.12)',
-            }}
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+type Movement = {
+  id?: number
+  type?: 'payment' | 'debt'
+  amount: number
+  date: string
+  studentId?: number
+  note?: string
 }
 
-function ToastBar({
-  open,
-  text,
-  onClose,
+// Formateo €
+const eur = (n: number) =>
+  new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 2,
+  }).format(n ?? 0)
+
+/** Convierte a Date de forma segura */
+function toDate(d: string | Date): Date {
+  return d instanceof Date ? d : new Date(d)
+}
+
+/** Gráfico de barras SVG sin librerías */
+function SvgBarChart({
+  title,
+  labels,
+  values,
+  height = 180,
+  pad = 16,
 }: {
-  open: boolean
-  text: string
-  onClose: () => void
+  title: string
+  labels: string[]
+  values: number[]
+  height?: number
+  pad?: number
 }) {
-  if (!open) return null
+  const max = Math.max(1, ...values)
+  const barGap = 8
+  const barWidth = 28
+  const innerWidth = values.length * barWidth + (values.length - 1) * barGap
+  const width = innerWidth + pad * 2
+  const chartHeight = height - pad * 2 - 18
+
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      style={{
-        position: 'fixed',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        bottom: 18,
-        background:
-          'linear-gradient(135deg, rgba(236,72,153,.96), rgba(124,58,237,.96))',
-        color: '#fff',
-        padding: '10px 14px',
-        borderRadius: 12,
-        boxShadow: '0 16px 30px rgba(0,0,0,.25)',
-        zIndex: 9999,
-        maxWidth: '90vw',
-        fontWeight: 700,
-      }}
-      onClick={onClose}
-    >
-      {text}
+    <div className="card">
+      <div className="card-header">{title}</div>
+      <svg width="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
+        <rect x="0" y="0" width={width} height={height} rx="14" fill="var(--card,#fff)" />
+        {[0.25, 0.5, 0.75, 1].map((p, i) => {
+          const y = pad + chartHeight * (1 - p)
+          return (
+            <line
+              key={i}
+              x1={pad}
+              x2={width - pad}
+              y1={y}
+              y2={y}
+              stroke="var(--slot-sep,#eee)"
+              strokeDasharray="4 4"
+              strokeWidth="1"
+            />
+          )
+        })}
+        {values.map((v, i) => {
+          const h = max === 0 ? 0 : (v / max) * chartHeight
+          const x = pad + i * (barWidth + barGap)
+          const y = pad + chartHeight - h
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={barWidth} height={h} rx="8" fill="var(--accent,#e879f9)" />
+              <text
+                x={x + barWidth / 2}
+                y={height - 6}
+                fontSize="11"
+                textAnchor="middle"
+                fill="var(--muted,#6b7280)"
+              >
+                {labels[i]}
+              </text>
+              {h > 22 && (
+                <text
+                  x={x + barWidth / 2}
+                  y={y - 4}
+                  fontSize="11"
+                  textAnchor="middle"
+                  fill="var(--text,#1f2937)"
+                >
+                  {Math.round(v)}
+                </text>
+              )}
+            </g>
+          )
+        })}
+        <rect x="0" y="0" width={width} height={height} rx="14" fill="none" stroke="rgba(0,0,0,.04)" />
+      </svg>
     </div>
   )
 }
@@ -174,214 +129,128 @@ const MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto
 /* ===================== Página ===================== */
 export default function InformesPage() {
   const [payments, setPayments] = useState<Movement[]>([])
-  const [students, setStudents] = useState<Student[]>([])
 
-  const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth()) // 0..11
-
-  // Confirm + Toast
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [toastOpen, setToastOpen] = useState(false)
-  const [toastMsg, setToastMsg] = useState('')
-
-  // Cargar datos (solo payments y lista de alumnos para nombres)
-  async function load() {
-    const allMovs: Movement[] = await (db as any).movements.toArray()
-    const onlyPay = allMovs
-      .filter(m => m.type === 'payment' && Number.isFinite(m.amount))
-      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    setPayments(onlyPay)
-
-    const sts: Student[] = await (db as any).students.toArray()
-    setStudents(sts)
-  }
-  useEffect(() => { load() }, [])
-
-  // ==== Helpers nombres / avatar ====
-  const nameById = useMemo(() => {
-    const m = new Map<number, string>()
-    students.forEach(s => { if (typeof s.id === 'number') m.set(s.id!, s.name) })
-    return m
-  }, [students])
-  const initials = (name?: string) =>
-    (name || '?').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase()
-  const colorFromName = (name?: string) => {
-    const safe = (name || 'X')
-    const n = safe.charCodeAt(0) + safe.charCodeAt(safe.length - 1)
-    const palette = ['#f472b6','#6366f1','#10b981','#0ea5e9','#f59e0b','#84cc16','#06b6d4','#db2777','#7c3aed']
-    return palette[n % palette.length]
-  }
-
-  // Años presentes en datos
-  const yearsInData = useMemo(() => {
-    if (payments.length === 0) return []
-    const set = new Set<number>()
-    for (const p of payments) set.add(new Date(p.date).getFullYear())
-    return Array.from(set).sort((a,b) => a - b)
-  }, [payments])
-
-  // Rango ampliado de años (pasado y futuro)
-  const yearOptions = useMemo(() => {
-    const current = now.getFullYear()
-    const minData = yearsInData.length ? yearsInData[0] : current
-    const start = Math.min(minData, current - 5)
-    const end   = current + 5
-    const arr: number[] = []
-    for (let y = start; y <= end; y++) arr.push(y)
-    return arr.reverse() // los más recientes arriba
-  }, [yearsInData])
-
-  // Datos por MES del año seleccionado
-  const dataMonths = useMemo(() => {
-    const s = startOfYear(new Date(year, 0, 1))
-    const e = endOfYear(s)
-    const inYear = payments.filter(m =>
-      isWithinInterval(parseISO(m.date), { start: s, end: e })
-    )
-    const arr = Array.from({ length: 12 }, (_, i) => ({
-      m: i,
-      label: MONTHS[i].slice(0,3),
-      total: 0,
-    }))
-    for (const p of inYear) {
-      const d = new Date(p.date)
-      arr[d.getMonth()].total += p.amount
-    }
-    return arr
-  }, [payments, year])
-
-  // Ajustar mes si el actual no tiene datos
+  // Cargar: intenta tabla "movements" (type='payment'); si no existe, usa "payments" (compatibilidad)
   useEffect(() => {
-    const has = dataMonths[month]?.total > 0
-    if (!has) {
-      const idx = dataMonths.findIndex(x => x.total > 0)
-      if (idx >= 0) setMonth(idx)
+    let alive = true
+    ;(async () => {
+      try {
+        // @ts-ignore
+        const hasMovs = typeof db.movements?.toArray === 'function'
+        if (hasMovs) {
+          // @ts-ignore
+          const all: Movement[] = await db.movements.toArray()
+          const only = all.filter(
+            (m) => (m.type ?? 'payment') === 'payment' && typeof m.amount === 'number' && !!m.date
+          )
+          if (alive) setPayments(only)
+        } else {
+          // @ts-ignore
+          const hasPays = typeof db.payments?.toArray === 'function'
+          if (hasPays) {
+            // @ts-ignore
+            const old: any[] = await db.payments.toArray()
+            const mapped: Movement[] = old
+              .filter((p) => typeof p.amount === 'number' && !!p.date)
+              .map((p) => ({
+                id: p.id,
+                type: 'payment',
+                amount: p.amount,
+                date: p.date,
+                studentId: p.studentId,
+              }))
+            if (alive) setPayments(mapped)
+          } else if (alive) setPayments([])
+        }
+      } catch (e) {
+        console.error(e)
+        if (alive) setPayments([])
+      }
+    })()
+    return () => {
+      alive = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataMonths])
+  }, [])
 
-  // Datos por DÍA del mes seleccionado (del año seleccionado)
-  const dataDays = useMemo(() => {
-    const ms = startOfMonth(new Date(year, month, 1))
-    const me = endOfMonth(ms)
-    const inMonth = payments.filter(m =>
-      isWithinInterval(parseISO(m.date), { start: ms, end: me })
+  // Mes actual
+  const now = new Date()
+  const start = startOfMonth(now)
+  const end = endOfMonth(now)
+
+  // Total cobrado en el mes actual (solo pagos)
+  const totalMes = useMemo(
+    () =>
+      payments
+        .filter((p) => {
+          const d = toDate(p.date)
+          return d >= start && d <= end
+        })
+        .reduce((acc, p) => acc + (p.amount || 0), 0),
+    [payments, start, end]
+  )
+
+  // Cobros por día (mes actual)
+  const dailyData = useMemo(() => {
+    const days = eachDayOfInterval({ start, end })
+    const map = new Map<string, number>()
+    for (const d of days) map.set(d.toISOString().slice(0, 10), 0)
+    for (const p of payments) {
+      const d = toDate(p.date)
+      if (d >= start && d <= end) {
+        const key = d.toISOString().slice(0, 10)
+        map.set(key, (map.get(key) || 0) + (p.amount || 0))
+      }
+    }
+    const labels = days.map((d) => format(d, 'd'))
+    const values = days.map((d) => map.get(d.toISOString().slice(0, 10)) || 0)
+    return { labels, values }
+  }, [payments, start, end])
+
+  // Cobros por mes (últimos 6 meses, incluido el actual)
+  const monthlyData = useMemo(() => {
+    const months: { s: Date; e: Date }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const s = startOfMonth(subMonths(now, i))
+      months.push({ s, e: eom(s) })
+    }
+    const labels = months.map((m) => format(m.s, 'MMM', { locale: es }))
+    const values = months.map(({ s, e }) =>
+      payments
+        .filter((p) => {
+          const d = toDate(p.date)
+          return d >= s && d <= e
+        })
+        .reduce((acc, p) => acc + (p.amount || 0), 0)
     )
-    const days = eachDayOfInterval({ start: ms, end: me })
-    const arr = days.map(d => ({ d, label: format(d, 'd', { locale: es }), total: 0 }))
-    for (const p of inMonth) {
-      const day = new Date(p.date).getDate() // 1..31
-      if (arr[day - 1]) arr[day - 1].total += p.amount
-    }
-    return arr
-  }, [payments, year, month])
-
-  // Cobros por alumno (año/mes)
-  function groupByStudent(start: Date, end: Date) {
-    const inRange = payments.filter(m =>
-      isWithinInterval(parseISO(m.date), { start, end }) &&
-      typeof m.studentId === 'number'
-    )
-    const acc = new Map<number, number>()
-    for (const p of inRange) {
-      const id = p.studentId as number
-      acc.set(id, (acc.get(id) || 0) + p.amount)
-    }
-    const arr = Array.from(acc, ([id, total]) => ({
-      id,
-      name: nameById.get(id) ?? `Alumno ${id}`,
-      total
-    }))
-    arr.sort((a,b) => b.total - a.total || a.name.localeCompare(b.name, 'es'))
-    return arr
-  }
-
-  const studentsYear  = useMemo(() => groupByStudent(
-    startOfYear(new Date(year, 0, 1)),
-    endOfYear(new Date(year, 0, 1))
-  ), [payments, year, nameById])
-
-  const studentsMonth = useMemo(() => groupByStudent(
-    startOfMonth(new Date(year, month, 1)),
-    endOfMonth(new Date(year, month, 1))
-  ), [payments, year, month, nameById])
-
-  // Totales
-  const totalYear  = useMemo(() => dataMonths.reduce((a, r) => a + r.total, 0), [dataMonths])
-  const totalMonth = useMemo(() => dataDays.reduce((a, r) => a + r.total, 0), [dataDays])
-
-  // Tooltip personalizado
-  const CurrencyTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null
-    const v = payload[0].value as number
-    return (
-      <div style={{ background:'#0f172a', color:'#fff', padding:'6px 8px', borderRadius:8, fontSize:12, boxShadow:'0 8px 22px rgba(0,0,0,.25)' }}>
-        <div style={{ opacity:.75, marginBottom:2 }}>{label}</div>
-        <div style={{ fontWeight:800 }}>{eur(v)}</div>
-      </div>
-    )
-  }
-
-  // onClick barra: usamos activePayload del evento para evitar el problema de tipos
-  function handleMonthBarClick(_: any, __: any, chart: any) {
-    const payload = chart?.activePayload?.[0]?.payload
-    if (payload && typeof payload.m === 'number') setMonth(payload.m)
-  }
-
-  // Paleta y gradientes
-  const brand1 = '#f472b6'
-  const brand2 = '#ec4899'
-  const brand3 = '#7c3aed'
-
-  // ===== Reset de pagos (solo payments) =====
-  async function handleResetConfirmed() {
-    try {
-      await (db as any).movements.where('type').equals('payment').delete()
-      const rest = await (db as any).movements
-        .toArray()
-        .then((ms: any[]) => ms.filter((m) => m.type === 'payment' && Number.isFinite(m.amount)))
-      setPayments(rest)
-
-      setConfirmOpen(false)
-      setToastMsg('Historial de cobros reseteado correctamente.')
-      setToastOpen(true)
-      setTimeout(() => setToastOpen(false), 2500)
-    } catch {
-      setConfirmOpen(false)
-      setToastMsg('No se pudo completar el reseteo.')
-      setToastOpen(true)
-      setTimeout(() => setToastOpen(false), 2500)
-    }
-  }
-
-  // ==== Estilos locales (solo esta página) ====
-  const css = `
-    .rep-wrap { display:grid; gap:16px; }
-    .rep-card { background:#fff; border:1px solid #eee; border-radius:16px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.06); }
-    .rep-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-    .rep-selects { display:flex; gap:10px; flex-wrap:wrap; }
-    .rep-selects select { padding:10px 12px; border:1px solid #e5e7eb; border-radius:12px; min-width:120px; }
-    .rep-stats { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    .rep-stat { background:#fbfbfe; border:1px solid #eef2f7; border-radius:14px; padding:12px; }
-    .rep-stat h5 { margin:0 0 4px; font-size:12px; color:#64748b; }
-    .rep-stat .big { font-size:26px; font-weight:900; }
-    .muted { color:#6b7280; }
-
-    .al-grid { display:grid; gap:12px; grid-template-columns: repeat(2, minmax(0,1fr)); }
-    @media (max-width: 900px) { .al-grid { grid-template-columns: 1fr; } }
-    .al-item {
-      display:flex; align-items:center; gap:12px;
-      border:1px solid #eef2f7; border-radius:14px; padding:10px 12px; background:#fff;
-      box-shadow:0 6px 16px rgba(0,0,0,.05);
-    }
-    .al-avatar { width:36px; height:36px; border-radius:50%; color:#fff; font-weight:900; display:flex; align-items:center; justify-content:center; }
-    .al-name { font-weight:800; }
-    .al-money { margin-left:auto; font-weight:900; }
-  `
+    return { labels, values }
+  }, [payments, now])
 
   return (
-    <div className="rep-wrap page--withHeader">
+    <div className="container informes">
+      <header className="header">
+        <h1>Informes</h1>
+        <p className="sub">Solo cobros. Mes actual: {format(now, "LLLL yyyy", { locale: es })}</p>
+      </header>
+
+      <section className="total-card">
+        <div className="total-label">Total cobrado este mes</div>
+        <div className="total-amount">{eur(totalMes)}</div>
+        <div className="total-note">Se actualiza automáticamente con cada pago</div>
+      </section>
+
+      <section>
+        <SvgBarChart title="Cobros por mes (últimos 6)" labels={monthlyData.labels} values={monthlyData.values} />
+      </section>
+
+      <section>
+        <SvgBarChart
+          title="Cobros por día (mes actual)"
+          labels={dailyData.labels}
+          values={dailyData.values}
+          height={200}
+        />
+      </section>
+
       <style>{css}</style>
 
       {/* Cabecera + selects + totales + reset */}
@@ -576,3 +445,19 @@ export default function InformesPage() {
     </div>
   )
 }
+
+const css = `
+.container.informes{max-width:920px;margin:0 auto;padding:16px}
+.header h1{margin:0 0 4px 0;font-size:clamp(20px,3.8vw,28px)}
+.header .sub{margin:0 0 16px 0;color:var(--muted,#6b7280);font-size:14px}
+.total-card{background:var(--card,#fff);border-radius:16px;box-shadow:var(--shadow,0 10px 25px rgba(0,0,0,.06));padding:16px;margin:8px 0 16px;border:1px solid rgba(0,0,0,.04)}
+.total-label{color:var(--muted,#6b7280);font-size:14px}
+.total-amount{font-size:clamp(28px,7vw,44px);font-weight:800;line-height:1.1;margin:6px 0;letter-spacing:-0.5px}
+.total-note{color:var(--muted,#6b7280);font-size:12px}
+.card{background:var(--card,#fff);border-radius:16px;box-shadow:var(--shadow,0 10px 25px rgba(0,0,0,.06));border:1px solid rgba(0,0,0,.04);overflow:hidden;margin:12px 0}
+.card-header{padding:12px 14px;font-weight:600;border-bottom:1px solid rgba(0,0,0,.06);background:linear-gradient(180deg,rgba(0,0,0,.02),rgba(0,0,0,0))}
+:root{--card:#fff;--muted:#6b7280;--text:#1f2937;--slot-sep:#ede9fe;--accent:#e879f9;--shadow:0 10px 25px rgba(0,0,0,.06)}
+@media (prefers-color-scheme: dark){
+  :root{--card:#0f1115;--muted:#9aa3af;--text:#e5e7eb;--slot-sep:#1f2937;--shadow:0 10px 25px rgba(0,0,0,.3)}
+}
+`
