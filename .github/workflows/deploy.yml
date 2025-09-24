@@ -1,10 +1,9 @@
-name: Implementar Vite en páginas de GitHub
+name: Deploy Vite to GitHub Pages
 
 on:
   push:
-    branches:
-      - principal        # dispara al hacer push/merge a principal
-  workflow_dispatch:     # permite lanzarlo a mano
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,7 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: 'npm'
 
       - name: Install deps
         run: npm ci
