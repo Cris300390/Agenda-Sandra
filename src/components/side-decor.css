@@ -1,25 +1,28 @@
-/* Ilustraciones laterales grandes e iguales */
+/* Ilustraciones laterales: mismo tamaño para ambas */
 .side-ill{
   position: fixed;
   top: 150px;
-  /* MISMO tamaño para ambas imágenes: sube 360px si las quieres aún más grandes */
   width: clamp(240px, 22vw, 360px);
   height: auto;
   user-select: none;
-  pointer-events: none;               /* no bloquea clics */
-  z-index: 0;                         /* al fondo */
+  pointer-events: none;   /* no bloquea clics */
+  z-index: 0;
   filter: drop-shadow(0 8px 20px rgba(0,0,0,.08));
 }
-
 .side-ill--left  { left: 20px; }
 .side-ill--right { right: 20px; }
 
-/* En pantallas medianas, un poco más pequeñas */
+/* Opcional: si quieres un “fondito” detrás de los niños, activa esto
+.side-ill--right{
+  background: var(--app-bg);
+  border-radius: 18px;
+  padding: 8px;
+}
+*/
+
 @media (max-width: 1000px){
   .side-ill{ width: clamp(200px, 26vw, 280px); }
 }
-
-/* En móviles, ocultarlas para no tapar la UI */
 @media (max-width: 680px){
   .side-ill{ display: none; }
 }
