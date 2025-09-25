@@ -2,99 +2,11 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#ec4899" />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Agenda Sandra</title>
-
-    <!-- Manifest + iconos (Vite reemplaza %BASE_URL% por /Agenda-Sandra/ al hacer build) -->
-    <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
-    <link rel="icon" href="%BASE_URL%icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="%BASE_URL%icons/ios-180.png" sizes="180x180" />
-
-    <!-- Fuentes elegantes -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-
-    <!-- Estilos del cabecero (centrado + profesional) -->
-    <style>
-      :root{
-        --brand-start:#f9a8d4;   /* rosa suave */
-        --brand-end:#f472b6;     /* rosa medio */
-        --ink:#0f172a;
-      }
-
-      html,body{
-        margin:0;
-        font-family:"Quicksand",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-        color:var(--ink);
-        background:#faf7fd;
-      }
-
-      /* Cabecero */
-      .app-header{
-        background:linear-gradient(90deg,var(--brand-start),var(--brand-end));
-      }
-      .app-header__inner{
-        max-width:1100px;
-        margin:0 auto;
-        padding:18px 16px;
-        display:flex;
-        flex-wrap:wrap;
-        align-items:center;
-        justify-content:center;   /* centrado */
-        gap:14px;
-        text-align:center;
-      }
-      /* Título elegante */
-      .app-title{
-        font-family:"Playfair Display",serif;
-        font-weight:700;
-        font-size:clamp(22px,3.6vw,34px);
-        letter-spacing:.3px;
-        color:#1f2937;
-        background:#ffffffcc;     /* pastilla suave */
-        border-radius:16px;
-        padding:6px 14px;
-      }
-
-      /* Botones del menú */
-      .topnav{ display:flex; gap:10px; flex-wrap:wrap; }
-      .topnav-btn{
-        appearance:none; border:none;
-        background:#fff; color:#0f172a;
-        border-radius:9999px; padding:.55rem 1.1rem;
-        font-weight:700;
-        box-shadow:0 6px 16px rgba(0,0,0,.06);
-        border:1px solid rgba(0,0,0,.06);
-        transition:transform .06s ease, box-shadow .2s ease;
-        text-decoration:none;
-        display:inline-block;
-      }
-      .topnav-btn:hover{ transform:translateY(-1px); box-shadow:0 10px 24px rgba(0,0,0,.08); }
-      .topnav-btn.active{ background:#0f172a; color:#fff; }
-    </style>
   </head>
-
   <body>
-    <!-- Si quieres ver el cabecero también al cargar sin React, puedes dejar este bloque
-         y en tu App.tsx lo replicas con las mismas clases. Si no, bórralo y React lo pinta. -->
-    <header class="app-header">
-      <div class="app-header__inner">
-        <h1 class="app-title">Las clases de Sandra</h1>
-        <nav class="topnav">
-          <a class="topnav-btn" href="%BASE_URL%">Agenda</a>
-          <a class="topnav-btn" href="%BASE_URL%alumnos">Alumnos</a>
-          <a class="topnav-btn" href="%BASE_URL%pagos">Pagos</a>
-          <a class="topnav-btn" href="%BASE_URL%informes">Informes</a>
-        </nav>
-      </div>
-    </header>
-
     <div id="root"></div>
-
-    <!-- Vite lo convertirá en /Agenda-Sandra/assets/index-xxxxx.js -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
