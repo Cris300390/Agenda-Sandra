@@ -1,18 +1,19 @@
-// src/main.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import App from './App'
+import './app.css'
 
-// Si tienes estilos globales, déjalo:
-import './app.css'  // o './index.css' si es tu caso
+// 👇 importa el proveedor de toasts
+import { ToastProvider } from './ui/Toast'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* En GitHub Pages, la app vive en /Agenda-Sandra/ */}
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <App />
-    </BrowserRouter>
+    {/* 👇 monta el provider arriba del router para que TODA la app tenga contexto */}
+    <ToastProvider>
+      <HashRouter>
+        <App />
+      </HashRouter>
+    </ToastProvider>
   </React.StrictMode>
 )
-

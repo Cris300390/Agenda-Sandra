@@ -279,19 +279,19 @@ export default function InformesPage() {
           <div className="rep-selects">
             <label>
               <span className="muted" style={{fontSize:12, display:'block'}}>Año</span>
-              <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <div class="select-pro"><select value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              </select></div>
             </label>
             <label>
               <span className="muted" style={{fontSize:12, display:'block'}}>Mes</span>
-              <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              <div class="select-pro"><select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
                 {MONTHS.map((m, i) => (
                   <option key={m} value={i}>
                     {m[0].toUpperCase()+m.slice(1)} {dataMonths[i].total>0 ? `— ${eur(dataMonths[i].total)}` : ''}
                   </option>
                 ))}
-              </select>
+              </select></div>
             </label>
 
             {/* Botón resetear histórico */}
@@ -430,3 +430,4 @@ export default function InformesPage() {
     </div>
   )
 }
+

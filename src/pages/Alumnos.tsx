@@ -331,10 +331,10 @@ export default function AlumnosPage() {
 
               <div className="al-field">
                 <label>Estado</label>
-                <select value={String(fActive)} onChange={(e) => setFActive(e.target.value === 'true')}>
+                <div class="select-pro"><select value={String(fActive)} onChange={(e) => setFActive(e.target.value === 'true')}>
                   <option value="true">Activo</option>
                   <option value="false">Inactivo</option>
-                </select>
+                </select></div>
               </div>
 
               <div className="al-field full">
@@ -358,3 +358,4 @@ export default function AlumnosPage() {
     </div>
   )
 }
+

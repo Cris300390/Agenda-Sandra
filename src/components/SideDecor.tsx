@@ -1,17 +1,22 @@
 // src/components/SideDecor.tsx
-/**
- * Componente puramente visual: pinta dos capas fijas (izquierda/derecha)
- * con las ilustraciones que pusimos en public/img/.
- *
- * Conceptos:
- * - Componente: pieza reutilizable de UI.
- * - aria-hidden: indica que es decorativo y no debe anunciarse a lectores de pantalla.
- */
+import './side-decor.css'
+
 export default function SideDecor() {
+  const base = import.meta.env.BASE_URL
   return (
     <>
-      <div className="decor decor--left" aria-hidden="true" />
-      <div className="decor decor--right" aria-hidden="true" />
+      <img
+        className="side-ill side-ill--left"
+        src={`${base}img/profesora.png`}
+        alt="Maestra"
+        onError={(e) => (e.currentTarget.style.display = 'none')}
+      />
+      <img
+        className="side-ill side-ill--right"
+        src={`${base}img/estudiantes.png`}
+        alt="Niños"
+        onError={(e) => (e.currentTarget.style.display = 'none')}
+      />
     </>
   )
 }

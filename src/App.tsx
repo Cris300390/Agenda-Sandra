@@ -1,49 +1,91 @@
 // src/App.tsx
-import { Link, Route, Routes } from 'react-router-dom'
+import { NavLink, Route, Routes, Navigate } from "react-router-dom"
 
-// Páginas reales
-import Agenda from './pages/Agenda'
-import Alumnos from './pages/Alumnos'
-import Pagos from './pages/Pagos'
-import Informes from './pages/Informes'
-import Home from './pages/Home'   // <- H mayúscula
+// Ilustraciones laterales (opcional)
+import SideDecor from "./components/SideDecor"
+
+// Páginas
+import Agenda from "./pages/Agenda"
+import Alumnos from "./pages/Alumnos"
+import Pagos from "./pages/Pagos"
+import Informes from "./pages/Informes"
+import Home from "./pages/Home" // si no lo usas, puedes borrarlo
 
 export default function App() {
   return (
-    <div className="main">
-      {/* Cabecera común */}
-      <header className="header card">
-        <h1 className="title">Agenda Sandra</h1>
-        <nav className="actions">
-          <Link className="chip chip--brand" to="/">Inicio</Link>
-          <Link className="chip" to="/agenda">Agenda</Link>
-          <Link className="chip" to="/alumnos">Alumnos</Link>
-          <Link className="chip" to="/pagos">Pagos</Link>
-          <Link className="chip" to="/informes">Informes</Link>
-        </nav>
-      </header>
+    <>
+      {/* ENCABEZADO NUEVO (profesional) */}
+      <div className="topbar-wrap">
+        <div className="topbar">
+          <h1 className="brand">Las clases de Sandra</h1>
 
-      {/* Rutas */}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/agenda" element={<Agenda />} />
-        <Route path="/alumnos" element={<Alumnos />} />
-        <Route path="/pagos" element={<Pagos />} />
-        <Route path="/informes" element={<Informes />} />
-        <Route
-          path="*"
-          element={
-            <div className="card mt-6">
-              <h2 style={{ marginTop: 0 }}>Página no encontrada</h2>
-              <p>Usa los botones de arriba para navegar.</p>
-              <div className="actions" style={{ marginTop: 8 }}>
-                <Link className="btn btn--brand" to="/">Ir al inicio</Link>
-                <Link className="btn" to="/agenda">Ir a Agenda</Link>
+          <nav className="tabs">
+            <NavLink
+              to="/agenda"
+              className={({ isActive }) =>
+                "pill pill--agenda" + (isActive ? " is-active" : "")
+              }
+            >
+              Agenda
+            </NavLink>
+
+            <NavLink
+              to="/alumnos"
+              className={({ isActive }) =>
+                "pill pill--alumnos" + (isActive ? " is-active" : "")
+              }
+            >
+              Alumnos
+            </NavLink>
+
+            <NavLink
+              to="/pagos"
+              className={({ isActive }) =>
+                "pill pill--pagos" + (isActive ? " is-active" : "")
+              }
+            >
+              Pagos
+            </NavLink>
+
+            <NavLink
+              to="/informes"
+              className={({ isActive }) =>
+                "pill pill--informes" + (isActive ? " is-active" : "")
+              }
+            >
+              Informes
+            </NavLink>
+          </nav>
+        </div>
+      </div>
+
+      {/* Ilustraciones laterales (no bloquean clics) */}
+      <SideDecor />
+
+      {/* Contenido principal */}
+      <main className="main">
+        <Routes>
+          {/* Si alguien entra a / o a /home, lo mandamos a Agenda */}
+          <Route path="/" element={<Navigate to="/agenda" replace />} />
+          <Route path="/home" element={<Navigate to="/agenda" replace />} />
+
+          <Route path="/agenda" element={<Agenda />} />
+          <Route path="/alumnos" element={<Alumnos />} />
+          <Route path="/pagos" element={<Pagos />} />
+          <Route path="/informes" element={<Informes />} />
+
+          {/* 404 simple */}
+          <Route
+            path="*"
+            element={
+              <div className="card mt-6">
+                <h2 className="mt-0">Página no encontrada</h2>
+                <p>Usa las pestañas de arriba para navegar.</p>
               </div>
-            </div>
-          }
-        />
-      </Routes>
-    </div>
+            }
+          />
+        </Routes>
+      </main>
+    </>
   )
 }

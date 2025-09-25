@@ -1,59 +1,41 @@
-// src/components/Header.tsx
 import { NavLink } from 'react-router-dom'
 
 export default function Header() {
   return (
-    <header className="school-header">
-      {/* QUITADO: la franja rosa de fondo (school-header__bg) */}
-      {/* <div className="school-header__bg" /> */}
+    <div className="topbar-wrap">
+      <div className="topbar">
+        <h1 className="brand">Las clases de Sandra</h1>
 
-      {/* Barra centrada */}
-      <div className="school-bar">
-        {/* Marca en “cartel de aula” */}
-        <div className="school-brand" aria-label="Las clases de Sandra">
-          <span className="school-brand__chalk">Las clases de Sandra</span>
-        </div>
-
-        {/* Menú con botones temáticos */}
-        <nav className="school-nav" aria-label="Principal">
+        <nav className="tabs" aria-label="Secciones">
           <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              'school-nav__item btn-pencil' + (isActive ? ' is-active' : '')
-            }
+            to="/agenda"
+            className={({ isActive }) => 'pill pill--agenda' + (isActive ? ' is-active' : '')}
           >
-            <span className="btn-label">Agenda</span>
+            Agenda
           </NavLink>
 
           <NavLink
             to="/alumnos"
-            className={({ isActive }) =>
-              'school-nav__item btn-ruler' + (isActive ? ' is-active' : '')
-            }
+            className={({ isActive }) => 'pill pill--alumnos' + (isActive ? ' is-active' : '')}
           >
-            <span className="btn-label">Alumnos</span>
+            Alumnos
           </NavLink>
 
           <NavLink
             to="/pagos"
-            className={({ isActive }) =>
-              'school-nav__item btn-sharpener' + (isActive ? ' is-active' : '')
-            }
+            className={({ isActive }) => 'pill pill--pagos' + (isActive ? ' is-active' : '')}
           >
-            <span className="btn-label">Pagos</span>
+            Pagos
           </NavLink>
 
           <NavLink
             to="/informes"
-            className={({ isActive }) =>
-              'school-nav__item btn-board' + (isActive ? ' is-active' : '')
-            }
+            className={({ isActive }) => 'pill pill--informes' + (isActive ? ' is-active' : '')}
           >
-            <span className="btn-label">Informes</span>
+            Informes
           </NavLink>
         </nav>
       </div>
-    </header>
+    </div>
   )
 }
