@@ -2,8 +2,8 @@ name: Deploy Vite to GitHub Pages
 
 on:
   push:
-    branches: [ main ]   # Se publica cuando haces merge a main
-  workflow_dispatch:     # Permite lanzarlo a mano
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,8 +32,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      # SPA fix: 404.html → index.html para rutas de React Router en Pages
-      - name: Copy 404 for SPA
+      - name: SPA 404 fallback
         run: cp dist/index.html dist/404.html
 
       - name: Upload artifact
