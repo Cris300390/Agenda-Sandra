@@ -375,7 +375,7 @@ export default function PagosPage() {
         <div className="row">
           <div className="field select-student">
             <label>Alumno (obligatorio)</label>
-            <select
+            <div class="select-pro"><select
               value={studentId ?? ''}
               onChange={(e) => setStudentId(e.target.value ? Number(e.target.value) : null)}
             >
@@ -383,7 +383,7 @@ export default function PagosPage() {
               {students.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
-            </select>
+            </select></div>
           </div>
 
           <div className="field">
@@ -393,12 +393,12 @@ export default function PagosPage() {
 
           <div className="field">
             <label>Quién paga</label>
-            <select value={payer} onChange={(e) => setPayer(e.target.value as Payer)}>
+            <div class="select-pro"><select value={payer} onChange={(e) => setPayer(e.target.value as Payer)}>
               <option value="ns">(sin especificar)</option>
               <option value="madre">Madre</option>
               <option value="padre">Padre</option>
               <option value="alumno">Alumno</option>
-            </select>
+            </select></div>
           </div>
 
           <div className="field">
@@ -627,3 +627,4 @@ export default function PagosPage() {
     </div>
   )
 }
+

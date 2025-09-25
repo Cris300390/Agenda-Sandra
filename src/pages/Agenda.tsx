@@ -341,10 +341,10 @@ function InlineAdd({
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={sid} onChange={(e) => setSid(e.target.value)} style={{ minWidth: 140 }}>
+        <div class="select-pro"><select value={sid} onChange={(e) => setSid(e.target.value)} style={{ minWidth: 140 }}>
           <option value="">Seleccionar alumno…</option>
           {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        </select></div>
         {!compact && (
           <>
             <input type="time" value={start} step={900} onChange={e => setStart(e.target.value)} />
@@ -625,3 +625,4 @@ function MonthTable({
     </section>
   )
 }
+
