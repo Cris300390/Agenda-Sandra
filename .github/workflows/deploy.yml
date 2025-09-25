@@ -2,8 +2,8 @@ name: Deploy Vite to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main ]   # Se publica cuando haces merge a main
+  workflow_dispatch:     # Permite lanzarlo a mano
 
 permissions:
   contents: read
@@ -24,8 +24,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: '20'
 
       - name: Install deps
         run: npm ci
@@ -33,10 +32,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      # SPA fix: 404.html → index.html para rutas de React Router en Pages
+      - name: Copy 404 for SPA
+        run: cp dist/index.html dist/404.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: dist
 
   deploy:
     needs: build

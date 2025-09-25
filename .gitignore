@@ -4,4 +4,4 @@ dist
 .env
 .env.local
 *.log
-vite.config.ts.timestamp*
+vite.config.ts.timestamp*dist/
