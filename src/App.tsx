@@ -6,7 +6,7 @@ import Agenda from './pages/Agenda'
 import Alumnos from './pages/Alumnos'
 import Pagos from './pages/Pagos'
 import Informes from './pages/Informes'
-import Home from './pages/Home'   // Ojo: H mayúscula
+import Home from './pages/Home'   // <- H mayúscula
 
 export default function App() {
   return (
@@ -30,8 +30,6 @@ export default function App() {
         <Route path="/alumnos" element={<Alumnos />} />
         <Route path="/pagos" element={<Pagos />} />
         <Route path="/informes" element={<Informes />} />
-
-        {/* 404 dentro de la app */}
         <Route
           path="*"
           element={
