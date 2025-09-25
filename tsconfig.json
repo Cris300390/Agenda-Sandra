@@ -12,7 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["vite/client", "react", "react-dom"]
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }

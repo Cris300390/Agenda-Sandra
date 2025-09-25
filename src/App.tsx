@@ -1,68 +1,51 @@
 // src/App.tsx
-import { Suspense, lazy, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
-import Header from './components/Header'
-import DecorativeEdges from './components/DecorativeEdges' // Ilustraciones laterales
+import { Link, Route, Routes } from 'react-router-dom'
 
-// Carga diferida (mejor rendimiento)
-const Agenda   = lazy(() => import('./pages/Agenda'))
-const Alumnos  = lazy(() => import('./pages/Alumnos'))
-const Pagos    = lazy(() => import('./pages/Pagos'))
-const Informes = lazy(() => import('./pages/Informes'))
+// Páginas reales
+import Agenda from './pages/Agenda'
+import Alumnos from './pages/Alumnos'
+import Pagos from './pages/Pagos'
+import Informes from './pages/Informes'
+import Home from './pages/Home'   // Ojo: H mayúscula
 
 export default function App() {
-  // Arranque: si existe una función global para rollover mensual, la ejecutamos 1 vez.
-  // (Por ejemplo, podrías definir window.__monthlyRollover en tu capa de datos.)
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const maybeRollover = (window as any).__monthlyRollover
-        if (typeof maybeRollover === 'function') {
-          await maybeRollover()
-        }
-      } catch (err) {
-        console.warn('Rollover mensual: salto por error/no disponible.', err)
-      }
-    })()
-  }, [])
-
   return (
-    <div>
-      {/* Cabecero nuevo */}
-      <Header />
+    <div className="main">
+      {/* Cabecera común */}
+      <header className="header card">
+        <h1 className="title">Agenda Sandra</h1>
+        <nav className="actions">
+          <Link className="chip chip--brand" to="/">Inicio</Link>
+          <Link className="chip" to="/agenda">Agenda</Link>
+          <Link className="chip" to="/alumnos">Alumnos</Link>
+          <Link className="chip" to="/pagos">Pagos</Link>
+          <Link className="chip" to="/informes">Informes</Link>
+        </nav>
+      </header>
 
-      {/* Ilustraciones laterales (profe + alumnos) */}
-      <DecorativeEdges />
+      {/* Rutas */}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/agenda" element={<Agenda />} />
+        <Route path="/alumnos" element={<Alumnos />} />
+        <Route path="/pagos" element={<Pagos />} />
+        <Route path="/informes" element={<Informes />} />
 
-      {/* Contenido principal */}
-      <main style={mainStyles}>
-        <Suspense fallback={<div style={fallbackStyles}>Cargando…</div>}>
-          <Routes>
-            <Route path="/" element={<Agenda />} />
-            <Route path="/alumnos" element={<Alumnos />} />
-            <Route path="/pagos" element={<Pagos />} />
-            <Route path="/informes" element={<Informes />} />
-            {/* Cualquier ruta desconocida vuelve a Agenda */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
+        {/* 404 dentro de la app */}
+        <Route
+          path="*"
+          element={
+            <div className="card mt-6">
+              <h2 style={{ marginTop: 0 }}>Página no encontrada</h2>
+              <p>Usa los botones de arriba para navegar.</p>
+              <div className="actions" style={{ marginTop: 8 }}>
+                <Link className="btn btn--brand" to="/">Ir al inicio</Link>
+                <Link className="btn" to="/agenda">Ir a Agenda</Link>
+              </div>
+            </div>
+          }
+        />
+      </Routes>
     </div>
   )
-}
-
-/* ---------- Estilos mínimos del contenedor ---------- */
-const mainStyles: React.CSSProperties = {
-  maxWidth: 1200,
-  margin: '16px auto',
-  padding: '0 12px 24px',
-  position: 'relative', // el main queda por delante de los bordes decorativos
-  zIndex: 3,
-}
-
-const fallbackStyles: React.CSSProperties = {
-  padding: 20,
-  background: '#fff',
-  borderRadius: 12,
-  border: '1px solid #f1f5f9',
 }

@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy Vite to GitHub Pages
 
 on:
   push:
@@ -24,8 +24,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: "npm"
+          node-version: '20'
 
       - name: Install deps
         run: npm ci
@@ -33,27 +32,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Evita que GitHub Pages/Jekyll esconda /assets
-      - name: Add .nojekyll
-        run: echo > dist/.nojekyll
-
-      # DEBUG: mostramos qué se va a publicar
-      - name: Show dist contents
-        run: |
-          echo "===== dist/index.html (primeras líneas) ====="
-          sed -n '1,120p' dist/index.html || true
-          echo "===== dist ====="
-          ls -la dist
-          echo "===== dist/assets ====="
-          ls -la dist/assets || true
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: SPA 404 fallback
+        run: cp dist/index.html dist/404.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: dist
 
   deploy:
     needs: build
