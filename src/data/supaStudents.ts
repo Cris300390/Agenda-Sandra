@@ -1,101 +1,108 @@
-import { supabase } from '../supabase'
+// src/data/supaStudents.ts
+// Helper Supabase para CRUD de alumnos (tabla: public.alumnos)
 
-/* ===== Tipo que usa la APP (camelCase) ===== */
-export type Student = {
+import { createClient } from '@supabase/supabase-js'
+
+// ⚙️ lee tus claves del .env (ya las tenías configuradas para supaTest)
+const supabaseUrl   = import.meta.env.VITE_SUPABASE_URL as string
+const supabaseAnon  = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+export const supabase = createClient(supabaseUrl, supabaseAnon)
+
+const TABLE = 'alumnos'
+
+// ---- Tipos locales (mapeamos español -> app) ----
+export type StudentDb = {
+  id: number
+  nombre: string
+  activo: boolean
+  precio: number | null
+  nota: string | null
+  created_at: string | null
+}
+
+// lo que usa la app
+export type StudentApp = {
   id?: number
   name: string
   active: boolean
   price?: number | null
   note?: string | null
-  notes?: string | null
-  nextClassNotes?: string | null
-  color?: string | null
-  age?: number | null
-  grade?: string | null
-  subjects?: string | null
-  repeated?: boolean | null
   createdAt?: string | null
 }
 
-/* ===== Conversión BD ↔ App ===== */
-function fromRow(r: any): Student {
+// mapear fila de BD -> app
+function toApp(r: StudentDb): StudentApp {
   return {
     id: r.id,
-    name: r.name,
-    active: r.active,
-    price: r.price == null ? null : Number(r.price),
-    note: r.note ?? null,
-    notes: r.notes ?? null,
-    nextClassNotes: r.next_class_notes ?? null,
-    color: r.color ?? null,
-    age: r.age ?? null,
-    grade: r.grade ?? null,
-    subjects: r.subjects ?? null,
-    repeated: r.repeated ?? null,
-    createdAt: r.created_at ?? null,
+    name: r.nombre,
+    active: r.activo,
+    price: r.precio,
+    note: r.nota,
+    createdAt: r.created_at,
   }
 }
 
-function toRow(s: Partial<Student>): any {
+// mapear app -> fila de BD (para insert/update)
+function toDb(p: Partial<StudentApp>): Partial<StudentDb> {
   return {
-    ...(s.name !== undefined ? { name: s.name } : {}),
-    ...(s.active !== undefined ? { active: s.active } : {}),
-    ...(s.price !== undefined ? { price: s.price } : {}),
-    ...(s.note !== undefined ? { note: s.note } : {}),
-    ...(s.notes !== undefined ? { notes: s.notes } : {}),
-    ...(s.nextClassNotes !== undefined ? { next_class_notes: s.nextClassNotes } : {}),
-    ...(s.color !== undefined ? { color: s.color } : {}),
-    ...(s.age !== undefined ? { age: s.age } : {}),
-    ...(s.grade !== undefined ? { grade: s.grade } : {}),
-    ...(s.subjects !== undefined ? { subjects: s.subjects } : {}),
-    ...(s.repeated !== undefined ? { repeated: s.repeated } : {}),
+    ...(p.name    !== undefined ? { nombre: p.name } : {}),
+    ...(p.active  !== undefined ? { activo: p.active } : {}),
+    ...(p.price   !== undefined ? { precio: p.price ?? null } : {}),
+    ...(p.note    !== undefined ? { nota: p.note ?? null } : {}),
   }
 }
 
-/* ===== CRUD ===== */
-export async function listStudents(): Promise<Student[]> {
+// ========= CRUD =========
+
+export async function list(): Promise<StudentApp[]> {
   const { data, error } = await supabase
-    .from('students')
-    .select('*')
-    .order('name', { ascending: true })
+    .from(TABLE)
+    .select('id, nombre, activo, precio, nota, created_at')
+    .order('nombre', { ascending: true })
+
   if (error) throw error
-  return (data || []).map(fromRow)
+  return (data ?? []).map(toApp)
 }
 
-export async function createStudent(s: Omit<Student, 'id' | 'createdAt'>) {
+export async function create(values: Partial<StudentApp>): Promise<StudentApp> {
+  const payload = toDb(values)
   const { data, error } = await supabase
-    .from('students')
-    .insert(toRow(s))
-    .select('*')
+    .from(TABLE)
+    .insert(payload)
+    .select('id, nombre, activo, precio, nota, created_at')
     .single()
   if (error) throw error
-  return fromRow(data)
+  return toApp(data as StudentDb)
 }
 
-export async function updateStudent(id: number, s: Partial<Student>) {
+export async function update(id: number, values: Partial<StudentApp>): Promise<StudentApp> {
+  const payload = toDb(values)
   const { data, error } = await supabase
-    .from('students')
-    .update(toRow(s))
+    .from(TABLE)
+    .update(payload)
     .eq('id', id)
-    .select('*')
+    .select('id, nombre, activo, precio, nota, created_at')
     .single()
   if (error) throw error
-  return fromRow(data)
+  return toApp(data as StudentDb)
 }
 
-export async function deleteStudent(id: number) {
-  const { error } = await supabase
-    .from('students')
-    .delete()
-    .eq('id', id)
+export async function remove(id: number): Promise<void> {
+  const { error } = await supabase.from(TABLE).delete().eq('id', id)
   if (error) throw error
 }
 
-/* ===== Realtime (auto-refresco entre dispositivos) ===== */
-export function subscribeStudents(onChange: () => void) {
-  const ch = supabase
-    .channel('students-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, onChange)
+// ========= Realtime (opcional) =========
+// si tu proyecto tiene habilitado "database real-time" para la tabla alumnos.
+export function subscribe(onChange: () => void) {
+  const channel = supabase
+    .channel('realtime-alumnos')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: TABLE },
+      () => onChange()
+    )
     .subscribe()
-  return () => supabase.removeChannel(ch)
+
+  return () => { try { supabase.removeChannel(channel) } catch {} }
 }
