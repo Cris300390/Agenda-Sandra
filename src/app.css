@@ -227,49 +227,9 @@ a:hover{ text-decoration:underline }
   .card,.table,.day-table{ box-shadow:none; border-color:#ddd }
 }
 
-/* ======= Header tipo pantallazo (limpio) ======= */
-.topbar-wrap{
-  display:flex; justify-content:center; margin:12px 0 8px;
-  position: relative; z-index: 10;
-}
-.topbar{
-  width:min(1100px, 92vw);
-  background: linear-gradient(180deg,#ffffff,#fff7fd);
-  border-radius: 18px;
-  padding: 12px 14px 16px;
-  box-shadow: 0 18px 40px rgba(17,24,39,.08);
-}
-.brand{
-  margin: 2px 0 10px; text-align:center;
-  font-family: Georgia, ui-serif, system-ui;
-  font-size: clamp(22px,3.8vw,36px);
-  font-weight: 700; color:#2b2b2b;
-  text-shadow: 0 2px 0 rgba(255,255,255,.7);
-}
-.tabs{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
-.pill{
-  display:inline-block; padding:10px 16px; border-radius:999px;
-  background:#ffffff; border:1px solid rgba(0,0,0,.06);
-  box-shadow: 0 8px 18px rgba(0,0,0,.06);
-  text-decoration:none; color:#c026d3; font-weight:600;
-}
-.pill.is-active{ background:linear-gradient(90deg,#f472b6,#ec4899); color:#fff; }
-.pill--agenda.is-active   { background:linear-gradient(90deg,#ffd166,#fcbf49); color:#000; }
-.pill--alumnos.is-active  { background:linear-gradient(90deg,#fde68a,#fbbf24); color:#000; }
-.pill--pagos.is-active    { background:linear-gradient(90deg,#bfdbfe,#93c5fd); color:#0f172a; }
-.pill--informes.is-active { background:linear-gradient(90deg,#86efac,#4ade80); color:#064e3b; }
-
-/* ===== Ilustraciones laterales (forzar SIN fondo/mezcla) ===== */
-.side-ill,
-.side-ill--right,
-.side-ill--left{
-  background: transparent !important;
-  mix-blend-mode: normal !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-  /* La sombra suave puede ir en side-decor.css, pero la dejamos neutra aquí */
-}
-/* ======= Header tipo pantallazo (versión pro) ======= */
+/* =========================
+   HEADER (versión pro)
+   ========================= */
 .topbar-wrap{
   display:flex; justify-content:center; margin:12px 0 10px;
   position:relative; z-index:10;
@@ -277,7 +237,6 @@ a:hover{ text-decoration:underline }
 
 .topbar{
   width:min(1100px, 92vw);
-  /* Glass + sutil gradiente */
   background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.70));
   -webkit-backdrop-filter: blur(8px) saturate(140%);
   backdrop-filter: blur(8px) saturate(140%);
@@ -287,23 +246,24 @@ a:hover{ text-decoration:underline }
   box-shadow: 0 18px 40px rgba(17,24,39,.08);
 }
 
-/* Título cursivo elegante */
+/* ===== Título NEGRO + CURSIVA (única definición) ===== */
 .brand{
   margin: 2px 0 12px;
   text-align:center;
-  font-family: "Playfair Display", Georgia, ui-serif;
-  font-style: italic;
-  font-weight: 700;
-  /* Texto con degradado suave y profesional */
-  background: linear-gradient(90deg, #c026d3, #ec4899);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-family: "Playfair Display", Georgia, ui-serif !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  color: #111827 !important;                  /* negro profesional */
+  -webkit-text-fill-color: #111827 !important; /* Safari/iOS */
+  background: none !important;                 /* sin degradados */
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
   letter-spacing: .2px;
   font-size: clamp(24px, 4vw, 40px);
+  text-shadow: 0 1px 0 rgba(255,255,255,.55);  /* sutil */
 }
 
-/* Menú de pestañas más “clean” */
+/* Menú de pestañas “clean” */
 .tabs{
   display:flex;
   gap:10px;
@@ -311,7 +271,7 @@ a:hover{ text-decoration:underline }
   flex-wrap:wrap;
 }
 
-/* Pastillas (chips) más profesionales */
+/* Pastillas (chips) */
 .pill{
   display:inline-flex; align-items:center; justify-content:center;
   padding: 10px 16px;
@@ -325,35 +285,35 @@ a:hover{ text-decoration:underline }
   transition: transform .08s ease, box-shadow .12s ease, background .12s ease, color .12s ease, border-color .12s ease;
   text-decoration:none;
 }
-
 .pill:hover{
   transform: translateY(-1px);
   box-shadow: 0 10px 22px rgba(0,0,0,.08);
   background: #faf7ff;
   border-color: rgba(124,58,237,.22);
 }
-
-/* Activa: relleno suave y legible por sección */
+/* Activa por sección */
 .pill.is-active{ color:#fff; border:none; box-shadow: 0 10px 22px rgba(0,0,0,.10) }
 .pill--agenda.is-active   { background: linear-gradient(90deg,#fcd34d,#fb923c); color:#111827; }
 .pill--alumnos.is-active  { background: linear-gradient(90deg,#fde68a,#fbbf24); color:#111827; }
 .pill--pagos.is-active    { background: linear-gradient(90deg,#bfdbfe,#93c5fd); color:#0f172a; }
 .pill--informes.is-active { background: linear-gradient(90deg,#86efac,#4ade80); color:#064e3b; }
-/* Refuerzo de fuentes (evita que otras reglas las pisen) */
-.brand{
-  font-family:"Playfair Display", Georgia, ui-serif !important;
-  font-style: italic !important;
+
+/* ===== Ilustraciones laterales (forzar SIN fondo/mezcla) ===== */
+.side-ill,
+.side-ill--right,
+.side-ill--left{
+  background: transparent !important;
+  mix-blend-mode: normal !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
 }
-.pill{
-  font-family:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
-}
+
 /* ===== Select nativo con estilo profesional ===== */
 .select-pro{
   position: relative;
   display: inline-block;
   width: 100%;
 }
-
 .select-pro select{
   width: 100%;
   appearance: none;           /* oculta flecha nativa */
@@ -367,18 +327,15 @@ a:hover{ text-decoration:underline }
   transition: border-color .15s ease, box-shadow .15s ease, transform .05s ease;
   font-weight: 600;
 }
-
 .select-pro select:hover{
   box-shadow: 0 10px 22px rgba(17,24,39,.08);
   transform: translateY(-1px);
 }
-
 .select-pro select:focus{
   outline: none;
   border-color: var(--brand-2);
   box-shadow: 0 0 0 3px rgba(236,72,153,.15), 0 10px 22px rgba(17,24,39,.08);
 }
-
 /* flecha */
 .select-pro::after{
   content: "";
@@ -393,15 +350,38 @@ a:hover{ text-decoration:underline }
   pointer-events: none;
   opacity: .9;
 }
-
-/* tamaños opcionales */
 .select-pro.is-sm select{ padding: 10px 36px 10px 10px; border-radius: 10px; }
 .select-pro.is-lg select{ padding: 14px 46px 14px 14px; border-radius: 14px; }
-
-/* deshabilitado */
 .select-pro select:disabled{
   color: #9ca3af;
   background: #f9fafb;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* ====== Estilo alternativo (tabs NavLink con .tab) ====== */
+.tabs.alt{ gap:12px; margin-top:8px }
+.tab{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid #eef2ff;
+  background: #ffffff;
+  color: #6b21a8;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(17,24,39,0.05);
+  text-decoration: none;
+}
+.tab.active, .tab[aria-current="page"]{
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  color: #111827;
+  border-color: #f59e0b;
+}
+
+/* ===== Responsive tipografía del título ===== */
+@media (max-width: 520px){
+  .brand{ font-size: clamp(22px, 6vw, 32px); }
 }

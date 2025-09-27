@@ -102,7 +102,7 @@ export default function Agenda() {
           color: '#0f172a',
           borderRadius: isMobile ? 0 : '20px 20px 0 0'
         }}>
-          <h1 className="brand-title" style={{ margin: 0, fontWeight: 800, fontSize: isMobile ? 24 : 34 }}>Agenda Sandra</h1>
+          <h1 style={{ margin: 0, fontWeight: 800, fontSize: isMobile ? 24 : 34 }}>Agenda Sandra</h1>
         </div>
 
         <div style={{ padding: isMobile ? 0 : 16 }}>
@@ -625,5 +625,4 @@ function MonthTable({
     </section>
   )
 }
-
 

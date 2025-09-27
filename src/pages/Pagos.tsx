@@ -1,28 +1,15 @@
-// src/pages/Pagos.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { db } from '../db'
-import type { Student } from '../db'
-import {
-  format, startOfMonth, endOfMonth, isWithinInterval, parseISO,
-  startOfYear, endOfYear
-} from 'date-fns'
+import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { useToast } from '../ui/Toast'          // toasts + confirm
-import PagosCleanup from '../components/PagosCleanup' // mantenimiento (borrar mes / huérfanos)
+import { useToast } from '../ui/Toast'
+import PagosCleanup from '../components/PagosCleanup'
 
-/* ===== Tipos ===== */
-type MovementType = 'debt' | 'payment'
-type Payer = 'madre' | 'padre' | 'alumno' | 'ns'
-type Movement = {
-  id?: number
-  studentId?: number
-  date: string             // ISO
-  type: MovementType
-  amount: number
-  note?: string
-  payer?: Payer
-  monthKey?: string        // YYYY-MM (para control mensual)
-}
+// 💡 Traemos TODO lo exportado como un objeto llamado Payments
+import * as Payments from '../data/supaPayments'
+import type { Movement, MovementType, Payer } from '../data/supaPayments'
+
+import { list as listStudents } from '../data/supaStudents'
+import type { StudentApp as Student } from '../data/supaStudents'
 
 /* ===== Utiles ===== */
 const eur = (n: number) =>
@@ -53,11 +40,11 @@ export default function PagosPage() {
   const [items, setItems] = useState<Movement[]>([])
 
   async function load() {
-    const allMovs: Movement[] = await (db as any).movements.toArray()
-    allMovs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    setItems(allMovs)
+    const movs: Movement[] = await Payments.list()
+    movs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    setItems(movs)
 
-    const sts: Student[] = await (db as any).students.toArray()
+    const sts: Student[] = await listStudents()
     sts.sort((a, b) => a.name.localeCompare(b.name, 'es'))
     setStudents(sts)
   }
@@ -68,6 +55,12 @@ export default function PagosPage() {
     const h = () => load()
     window.addEventListener('data:changed', h as any)
     return () => window.removeEventListener('data:changed', h as any)
+  }, [])
+
+  // realtime opcional del helper
+  useEffect(() => {
+    const unsub = Payments.subscribe?.(() => load())
+    return () => unsub?.()
   }, [])
 
   const nameById = useMemo(() => {
@@ -119,7 +112,7 @@ export default function PagosPage() {
     for (const m of inMonth) {
       if (typeof m.studentId !== 'number') continue
       const id = m.studentId
-      const name = nameById.get(id) ?? `Alumno ${id}`
+      const name = nameById.get(id) ?? 'Alumno'
       if (!acc.has(id)) acc.set(id, { id, name, deuda: 0, pagado: 0, pendiente: 0 })
       const row = acc.get(id)!
       if (m.type === 'debt') row.deuda += m.amount
@@ -176,13 +169,17 @@ export default function PagosPage() {
     if (!canCreate) { toast.error('Selecciona un alumno'); return }
     const amount = parseEuro(debtAmount)
     if (amount <= 0) { toast.warning('Importe inválido', 'La deuda debe ser mayor que cero.'); return }
-    await (db as any).movements.add({
-      studentId: studentId!, date: new Date(when).toISOString(),
+    await Payments.add({
+      studentId: studentId!,
+      date: new Date(when).toISOString(),
       monthKey: yyyyMM(new Date(when)),
-      type: 'debt', amount, note: note?.trim() || undefined, payer
-    } as Movement)
+      type: 'debt',
+      amount,
+      note: note?.trim() || undefined,
+      payer
+    })
     setDebtAmount(''); setNote('')
-    toast.success('Deuda añadida', `${eur(amount)} asignado correctamente.`)
+    toast.success('Deuda añadida', 'Asignado correctamente.')
     await load()
   }
 
@@ -190,13 +187,17 @@ export default function PagosPage() {
     if (!canCreate) { toast.error('Selecciona un alumno'); return }
     const amount = parseEuro(payAmount)
     if (amount <= 0) { toast.warning('Importe inválido', 'El pago debe ser mayor que cero.'); return }
-    await (db as any).movements.add({
-      studentId: studentId!, date: new Date(when).toISOString(),
+    await Payments.add({
+      studentId: studentId!,
+      date: new Date(when).toISOString(),
       monthKey: yyyyMM(new Date(when)),
-      type: 'payment', amount, note: note?.trim() || undefined, payer
-    } as Movement)
+      type: 'payment',
+      amount,
+      note: note?.trim() || undefined,
+      payer
+    })
     setPayAmount(''); setNote('')
-    toast.success('Pago registrado', `${eur(amount)} guardado correctamente.`)
+    toast.success('Pago registrado', 'Guardado correctamente.')
     await load()
   }
 
@@ -216,14 +217,14 @@ export default function PagosPage() {
 
     const ok = await toast.confirm({
       title: kind === 'debt' ? 'Deshacer última deuda' : 'Deshacer último pago',
-      message: `${eur(target.amount)} del ${fecha}. Esta acción no se puede deshacer.`,
+      message: `del ${fecha}. Esta acción no se puede deshacer.`,
       confirmText: 'Deshacer',
       cancelText: 'Cancelar',
       tone: 'danger',
     })
     if (!ok) return
 
-    await (db as any).movements.delete(target.id)
+    await Payments.remove(target.id!)
     toast.success('Operación deshecha')
     await load()
   }
@@ -235,15 +236,15 @@ export default function PagosPage() {
 
     const ok = await toast.confirm({
       title: `Eliminar ${tipo}`,
-      message: `${eur(item.amount)} del ${fecha}. Esta acción no se puede deshacer.`,
+      message: `del ${fecha}. Esta acción no se puede deshacer.`,
       confirmText: 'Eliminar',
       cancelText: 'Cancelar',
       tone: 'danger',
     })
     if (!ok) return
 
-    await (db as any).movements.delete(item.id)
-    toast.success('Eliminado', `${tipo} borrado correctamente.`)
+    await Payments.remove(item.id!)
+    toast.success('Eliminado', 'Borrado correctamente.')
     await load()
   }
 
@@ -375,7 +376,7 @@ export default function PagosPage() {
         <div className="row">
           <div className="field select-student">
             <label>Alumno (obligatorio)</label>
-            <div class="select-pro"><select
+            <div className="select-pro"><select
               value={studentId ?? ''}
               onChange={(e) => setStudentId(e.target.value ? Number(e.target.value) : null)}
             >
@@ -393,7 +394,7 @@ export default function PagosPage() {
 
           <div className="field">
             <label>Quién paga</label>
-            <div class="select-pro"><select value={payer} onChange={(e) => setPayer(e.target.value as Payer)}>
+            <div className="select-pro"><select value={payer} onChange={(e) => setPayer(e.target.value as Payer)}>
               <option value="ns">(sin especificar)</option>
               <option value="madre">Madre</option>
               <option value="padre">Padre</option>
@@ -498,7 +499,7 @@ export default function PagosPage() {
       <section className="block">
         <h3 style={{ margin: '0 0 10px' }}>
           Movimientos de {format(new Date(when), 'MMMM yyyy', { locale: es })}
-          {selected ? ` — ${selected.name}` : ''}
+          {selected && <> — {selected.name}</>}
         </h3>
 
         <div className="table-wrap">
@@ -518,17 +519,19 @@ export default function PagosPage() {
                 <tr><td colSpan={6} className="muted">Elige un alumno y/o no hay movimientos en este mes.</td></tr>
               )}
 
-              {rowsWithBalance.map(m => {
+              {rowsWithBalance.map((m: any) => {
                 const d = new Date(m.date)
                 const isDebt = m.type === 'debt'
                 return (
                   <tr key={m.id}>
                     <td data-label="Fecha">{format(d, 'dd/MM/yyyy HH:mm')}</td>
-                    <td data-label="Movimiento"><span className={`chip ${isDebt ? 'chip--debt' : 'chip--pay'}`}>{isDebt ? 'Deuda' : 'Pago'}</span></td>
+                    <td data-label="Movimiento">
+                      <span className={'chip ' + (isDebt ? 'chip--debt' : 'chip--pay')}>{isDebt ? 'Deuda' : 'Pago'}</span>
+                    </td>
                     <td data-label="Importe" className={isDebt ? 'money--neg' : 'money--pos'}>
                       {isDebt ? '+ ' : '− '}{eur(m.amount)}
                     </td>
-                    <td data-label="Saldo" className="money--muted">{eur((m as any).balance)}</td>
+                    <td data-label="Saldo" className="money--muted">{eur(m.balance)}</td>
                     <td data-label="Nota / Paga">
                       {m.note ? m.note : <span className="muted">—</span>}
                       {m.payer && m.payer !== 'ns' ? `  ·  ${m.payer}` : ''}
@@ -623,8 +626,7 @@ export default function PagosPage() {
       )}
 
       {/* Panel de mantenimiento (borrar mes / huérfanos) */}
-      <PagosCleanup />
+      <PagosCleanup monthKey={yyyyMM(new Date(when))} onChanged={load} />
     </div>
   )
 }
-
