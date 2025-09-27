@@ -30,6 +30,9 @@ import {
 // Notificaciones profesionales
 import { useToast } from '../ui/Toast'
 
+// ✅ Cliente Supabase ya existente (lo usamos para informes también)
+import { client as supa } from '../data/supaClient'
+
 /* ============== Tipos y utilidades ============== */
 type Movement = {
   id?: number
@@ -58,8 +61,49 @@ export default function InformesPage() {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth()) // 0..11
 
-  // Cargar datos (solo payments y lista de alumnos para nombres)
-  async function load() {
+  // ===== Capa de datos (Supabase + fallback Dexie) =====
+  async function loadFromSupabase() {
+    // 1) Movimientos
+    const { data: movs, error: errMovs } = await supa
+      .from('movimientos')
+      .select('*')
+      .order('id', { ascending: true })
+
+    // 2) Alumnos (solo para nombres)
+    const { data: sts, error: errSts } = await supa
+      .from('alumnos')
+      .select('*')
+      .order('id', { ascending: true })
+
+    if (errMovs || errSts) throw errMovs || errSts
+
+    // Mapear columnas posibles (fecha/importe/tipo vs date/amount/type)
+    const mappedMovs: Movement[] = (movs || []).map((r: any) => {
+      const date = (r.date ?? r.fecha ?? r.created_at) as string
+      const type = (r.type ?? r.tipo ?? 'payment') as 'payment'|'debt'
+      const amount = Number(r.amount ?? r.importe ?? 0)
+      const studentId = (r.student_id ?? r.studentId) as number | undefined
+      return { id: r.id, studentId, date, type, amount }
+    })
+    const onlyPay = mappedMovs
+      .filter(m => m.type === 'payment' && Number.isFinite(m.amount))
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    setPayments(onlyPay)
+
+    // Alumnos: normalizamos nombre
+    const mappedStudents: Student[] = (sts || []).map((s: any) => ({
+      // mantenemos tus campos locales; al menos name e id
+      id: s.id,
+      name: s.name ?? s.nombre ?? `Alumno ${s.id}`,
+      active: s.active ?? s.activo ?? true,
+      price: s.price ?? s.precio ?? undefined,
+      note: s.note ?? s.nota ?? '',
+      color: s.color ?? undefined,
+    }))
+    setStudents(mappedStudents)
+  }
+
+  async function loadFromDexie() {
     const allMovs: Movement[] = await (db as any).movements.toArray()
     const onlyPay = allMovs
       .filter(m => m.type === 'payment' && Number.isFinite(m.amount))
@@ -69,7 +113,29 @@ export default function InformesPage() {
     const sts: Student[] = await (db as any).students.toArray()
     setStudents(sts)
   }
+
+  // Cargar datos (intenta Supabase y cae a Dexie si falla)
+  async function load() {
+    try {
+      await loadFromSupabase()
+    } catch {
+      await loadFromDexie()
+    }
+  }
   useEffect(() => { load() }, [])
+
+  // Suscripción realtime (se recarga al cambiar movimientos o alumnos)
+  useEffect(() => {
+    const ch = supa
+      .channel('informes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'movimientos' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alumnos' }, load)
+      .subscribe((status) => {
+        // opcional: console.log('realtime informes:', status)
+      })
+    return () => { supa.removeChannel(ch) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ==== Helpers nombres / avatar ====
   const nameById = useMemo(() => {
@@ -227,7 +293,6 @@ export default function InformesPage() {
 
   // Clic en barra de meses → cambia el mes (seguro para TS)
   const onMonthBarClick = (data: any) => {
-    // En Recharts, Bar onClick recibe (data, index). Usamos payload seguro.
     const payload = data && (data.payload || data.activePayload?.[0]?.payload)
     if (payload && typeof payload.m === 'number') setMonth(payload.m)
   }
@@ -248,7 +313,12 @@ export default function InformesPage() {
       tone: 'danger',
     })
     if (!ok) return
-    await (db as any).movements.clear()
+
+    // Primero intentamos en Supabase; si falla, limpiamos Dexie
+    const { error } = await supa.from('movimientos').delete().neq('id', -1)
+    if (error) {
+      await (db as any).movements.clear()
+    }
     await load()
     toast.success('Hecho', 'Histórico eliminado correctamente.')
   }
@@ -279,13 +349,13 @@ export default function InformesPage() {
           <div className="rep-selects">
             <label>
               <span className="muted" style={{fontSize:12, display:'block'}}>Año</span>
-              <div class="select-pro"><select value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <div className="select-pro"><select value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
               </select></div>
             </label>
             <label>
               <span className="muted" style={{fontSize:12, display:'block'}}>Mes</span>
-              <div class="select-pro"><select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              <div className="select-pro"><select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
                 {MONTHS.map((m, i) => (
                   <option key={m} value={i}>
                     {m[0].toUpperCase()+m.slice(1)} {dataMonths[i].total>0 ? `— ${eur(dataMonths[i].total)}` : ''}
@@ -430,4 +500,3 @@ export default function InformesPage() {
     </div>
   )
 }
-

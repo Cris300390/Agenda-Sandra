@@ -1,11 +1,21 @@
 // src/pages/Alumnos.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { db } from '../db'
-import type { Student } from '../db'
 import { useToast } from '../ui/Toast'
 
+// 🔌 Helper Supabase (ya lo creamos en src/data/supaStudents.ts)
+import * as S from '../data/supaStudents'
+
+// === Tipos (alineados con la tabla public.students en Supabase) ===
+type StudentAny = {
+  id?: number
+  name: string
+  active: boolean
+  price?: number | null
+  note?: string | null
+  createdAt?: string | null
+} & Record<string, any>
+
 type FilterTab = 'all' | 'active' | 'inactive'
-type StudentAny = Student & Record<string, any>
 
 export default function AlumnosPage() {
   const toast = useToast()
@@ -18,18 +28,27 @@ export default function AlumnosPage() {
   const [openForm, setOpenForm] = useState(false)
   const [editing, setEditing] = useState<StudentAny | null>(null)
 
-  // Campos del formulario (¡solo nombre, tarifa, estado y nota!)
+  // Campos del formulario
   const [fName, setFName] = useState('')
   const [fPrice, setFPrice] = useState('')
   const [fNote, setFNote] = useState('')
   const [fActive, setFActive] = useState(true)
 
+  // ========= CARGA INICIAL + REALTIME =========
   async function load() {
-    const rows: StudentAny[] = await (db as any).students.toArray()
-    rows.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'))
-    setAll(rows)
+    const list = await S.list()
+    // orden alfabético
+    list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'es'))
+    setAll(list as StudentAny[])
   }
+
   useEffect(() => { load() }, [])
+
+  // Realtime: si tu helper expone subscribe, nos enganchamos
+  useEffect(() => {
+    const unsub = S.subscribe?.(() => load())
+    return () => { try { unsub && unsub() } catch {} }
+  }, [])
 
   // Bloquea scroll del fondo al abrir el modal
   useEffect(() => {
@@ -53,7 +72,7 @@ export default function AlumnosPage() {
       if (!qn) return true
       const parts = [
         String(s.name || ''),
-        String(s.note || s.nota || ''),        // buscador por nota
+        String(s.note || s.nota || ''), // buscador por nota
       ]
       return parts.join(' ').toLowerCase().includes(qn)
     })
@@ -93,12 +112,14 @@ export default function AlumnosPage() {
 
   async function onToggleActive(s: StudentAny) {
     const next = !isActive(s)
-    await (db as any).students.update(s.id as number, { active: next, isActive: next })
+    if (!s.id) return
+    await S.update(s.id, { active: next })
     toast.info(next ? 'Alumno activado' : 'Alumno desactivado', s.name || '')
     await load()
   }
 
   async function onDelete(s: StudentAny) {
+    if (!s.id) return
     const ok = await toast.confirm({
       title: 'Eliminar alumno',
       message: `¿Eliminar a “${s.name}”? Esta acción no se puede deshacer.`,
@@ -107,7 +128,7 @@ export default function AlumnosPage() {
       tone: 'danger',
     })
     if (!ok) return
-    await (db as any).students.delete(s.id as number)
+    await S.remove(s.id)
     toast.success('Alumno eliminado', s.name || '')
     await load()
   }
@@ -120,28 +141,23 @@ export default function AlumnosPage() {
     const priceNum = parsePrice(fPrice)
     const note = fNote.trim()
 
-    if (editing) {
+    if (editing?.id) {
       // EDITAR
-      const updates: any = {
+      await S.update(editing.id, {
         name,
         active: fActive,
-        isActive: fActive,
-        price: priceNum ?? undefined,
-        note: note || undefined,
-      }
-      await (db as any).students.update(editing.id as number, updates)
+        price: priceNum ?? null,
+        note: note || null,
+      })
       toast.success('Cambios guardados', name)
     } else {
       // CREAR
-      const newStudent: any = {
+      await S.create({
         name,
         active: fActive,
-        isActive: fActive,
-        createdAt: new Date().toISOString(),
-        ...(priceNum != null ? { price: priceNum } : {}),
-        ...(note ? { note } : {}),
-      }
-      await (db as any).students.add(newStudent)
+        price: priceNum ?? null,
+        note: note || null,
+      })
       toast.success('Alumno creado', name)
     }
 
@@ -149,7 +165,7 @@ export default function AlumnosPage() {
     await load()
   }
 
-  // ===== estilos (ajustes de nota y layout) =====
+  // ===== estilos (los “bonitos” de tu versión) =====
   const css = `
     .alumnos-wrap { display:grid; gap: 16px; }
 
@@ -203,7 +219,6 @@ export default function AlumnosPage() {
     @media (max-width: 680px){ .al-info { grid-template-columns: 1fr; } }
     .al-info-item { background:#f9fafb; border:1px solid #eef2f7; border-radius:12px; padding:8px 10px; min-height:44px; }
     .al-info-item h5 { margin:0 0 4px; font-size:11px; color:#64748b; }
-    /* 👉 la nota se muestra dentro y con saltos de línea */
     .al-info-item p { margin:0; font-weight:700; color:#0f172a; white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word; }
 
     .al-actions { display:flex; gap:8px; flex-wrap:wrap; }
@@ -284,7 +299,10 @@ export default function AlumnosPage() {
               <section className="al-info">
                 <div className="al-info-item"><h5>Tarifa</h5><p>{priceTxt}</p></div>
                 <div className="al-info-item"><h5>Nota</h5><p>{note}</p></div>
-                <div className="al-info-item"><h5>Creado</h5><p>{s.createdAt ? new Date(s.createdAt).toLocaleDateString('es-ES') : '—'}</p></div>
+                <div className="al-info-item">
+                  <h5>Creado</h5>
+                  <p>{s.createdAt ? new Date(s.createdAt).toLocaleDateString('es-ES') : '—'}</p>
+                </div>
               </section>
 
               <footer className="al-actions">
@@ -331,7 +349,7 @@ export default function AlumnosPage() {
 
               <div className="al-field">
                 <label>Estado</label>
-                <div class="select-pro"><select value={String(fActive)} onChange={(e) => setFActive(e.target.value === 'true')}>
+                <div className="select-pro"><select value={String(fActive)} onChange={(e) => setFActive(e.target.value === 'true')}>
                   <option value="true">Activo</option>
                   <option value="false">Inactivo</option>
                 </select></div>
@@ -358,4 +376,3 @@ export default function AlumnosPage() {
     </div>
   )
 }
-

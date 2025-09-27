@@ -1,3 +1,4 @@
+import './supabase'   // asegura que se ejecuta y crea window.supaTest en DEV
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
