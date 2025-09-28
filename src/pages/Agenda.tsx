@@ -27,6 +27,7 @@ type RepeatOptions = { enabled: boolean; weekdays: number[]; until?: string }
 
 /* ===== Helper: detectar móvil ===== */
 function useIsMobile(max = 480) {
+  const { options, loading, error: studentsError } = useStudentsOptions();
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia(`(max-width:${max}px)`).matches : true
   )
@@ -41,6 +42,7 @@ function useIsMobile(max = 480) {
 
 /* ===== Página ===== */
 export default function Agenda() {
+  const { options, loading, error: studentsError } = useStudentsOptions();
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [currentDate, setCurrentDate] = useState<Date>(() => {
     const saved = localStorage.getItem('agenda.currentDate')
@@ -232,6 +234,7 @@ function DayTable({
 
   // ✅ Sin "as Date" para evitar el error de TSX
   function eventsIn(slot: string) {
+  const { options, loading, error: studentsError } = useStudentsOptions();
     const [hh] = slot.split(':').map(Number)
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, 0)
     const slotEnd   = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh + 1, 0)
@@ -327,10 +330,12 @@ function InlineAdd({
   useEffect(() => { (async () => setStudents(await db.students.orderBy('name').toArray()))() }, [])
 
   function toggle(w: number) {
+  const { options, loading, error: studentsError } = useStudentsOptions();
     setRepeatWeekdays(prev => prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w])
   }
 
   async function create() {
+  const { options, loading, error: studentsError } = useStudentsOptions();
     if (!onCreate || !sid) return
     const repeat = repeatEnabled ? { enabled: true, weekdays: repeatWeekdays, until: repeatUntil } : { enabled: false, weekdays: [] }
     await onCreate(slot, Number(sid), start, end, repeat)
@@ -407,6 +412,7 @@ function Pill({
   const [isEditing, setIsEditing] = useState(false)
 
   async function save() {
+  const { options, loading, error: studentsError } = useStudentsOptions();
     const [sH, sM] = start.split(':').map(Number)
     const [eH, eM] = end.split(':').map(Number)
     const d = event.start
@@ -470,6 +476,7 @@ function ResumenPanel({
   const totalAlumnos = alumnos.length
 
   const pctColor = (p: number) => {
+  const { options, loading, error: studentsError } = useStudentsOptions();
     if (p >= 0.9) return '#ef4444'
     if (p >= 0.6) return '#f59e0b'
     return '#22c55e'
@@ -557,11 +564,14 @@ function MonthTable({
   while (d <= end) { days.push(d); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) }
 
   function inHours(e: CalendarEvent) {
+  const { options, loading, error: studentsError } = useStudentsOptions();
     const h = e.start.getHours()
     return h >= START_HOUR && h < END_HOUR
   }
-  function eventsCount(day: Date) { return events.filter(e => inHours(e) && isSameDay(e.start, day)).length }
-  function uniqueStudentsCount(day: Date) { return new Set(events.filter(e => inHours(e) && isSameDay(e.start, day)).map(e => e.title)).size }
+  function eventsCount(day: Date) {
+  const { options, loading, error: studentsError } = useStudentsOptions(); return events.filter(e => inHours(e) && isSameDay(e.start, day)).length }
+  function uniqueStudentsCount(day: Date) {
+  const { options, loading, error: studentsError } = useStudentsOptions(); return new Set(events.filter(e => inHours(e) && isSameDay(e.start, day)).map(e => e.title)).size }
 
   const gap         = isMobile ? 4  : 8
   const titleSize   = isMobile ? 16 : 18
@@ -625,5 +635,9 @@ function MonthTable({
     </section>
   )
 }
+
+
+
+
 
 
