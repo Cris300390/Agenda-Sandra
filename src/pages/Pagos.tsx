@@ -1,11 +1,9 @@
+import React from 'react';
 import React, { useEffect, useMemo, useState } from 'react'
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useToast } from '../ui/Toast'
 import PagosCleanup from '../components/PagosCleanup'
-import React from 'react';
-
-
 // 💳 pagos / movimientos
 import * as Payments from '../data/supaPayments'
 import type { Movement, MovementType, Payer } from '../data/supaPayments'
@@ -643,5 +641,6 @@ export default function PagosPage() {
     </div>
   )
 }
+
 
 
