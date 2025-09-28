@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useToast } from '../ui/Toast'
 import PagosCleanup from '../components/PagosCleanup'
+import React from 'react';
 
-// 💡 Traemos TODO lo exportado como un objeto llamado Payments
+// 💳 pagos / movimientos
 import * as Payments from '../data/supaPayments'
 import type { Movement, MovementType, Payer } from '../data/supaPayments'
 
+// 👩‍🎓 alumnos (lo que SÍ tienes exportado)
 import { list as listStudents } from '../data/supaStudents'
 import type { StudentApp as Student } from '../data/supaStudents'
 
@@ -25,9 +27,9 @@ const yyyyMM = (d: Date) => format(d, 'yyyy-MM')
 export default function PagosPage() {
   const toast = useToast()
 
-  // Alumnos
+  // Alumnos (de Supabase) y alumno seleccionado (ID numérico)
   const [students, setStudents] = useState<Student[]>([])
-  const [studentId, setStudentId] = useState<number | null>(null)
+  const [studentId, setStudentId] = useState<number | undefined>(undefined)
 
   // Formulario
   const [when, setWhen] = useState<string>(() => toInputDateTime(new Date()))
@@ -39,11 +41,14 @@ export default function PagosPage() {
   // Datos
   const [items, setItems] = useState<Movement[]>([])
 
+  // Cargar movimientos + alumnos (solo activos)
   async function load() {
+    // Movimientos
     const movs: Movement[] = await Payments.list()
     movs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     setItems(movs)
 
+    // Alumnos
     const sts: Student[] = await listStudents()
     sts.sort((a, b) => a.name.localeCompare(b.name, 'es'))
     setStudents(sts)
@@ -57,19 +62,26 @@ export default function PagosPage() {
     return () => window.removeEventListener('data:changed', h as any)
   }, [])
 
-  // realtime opcional del helper
+  // realtime opcional del helper de pagos
   useEffect(() => {
     const unsub = Payments.subscribe?.(() => load())
     return () => unsub?.()
   }, [])
 
+  // Opciones SOLO de alumnos activos, ya ordenadas
+  const activeStudents = useMemo(
+    () => students.filter(s => s.active).sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    [students]
+  )
+
+  // Mapa id -> nombre para resúmenes
   const nameById = useMemo(() => {
     const m = new Map<number, string>()
     students.forEach(s => { if (typeof s.id === 'number') m.set(s.id, s.name) })
     return m
   }, [students])
 
-  const canCreate = studentId != null
+  const canCreate = typeof studentId === 'number'
 
   // Rango del mes seleccionado
   const range = useMemo(() => {
@@ -80,7 +92,7 @@ export default function PagosPage() {
   // Movimientos del mes por alumno
   const monthItems = useMemo(() => {
     return items.filter(m =>
-      studentId != null &&
+      typeof studentId === "number" && 
       m.studentId === studentId &&
       isWithinInterval(parseISO(m.date), { start: range.start, end: range.end })
     )
@@ -166,11 +178,11 @@ export default function PagosPage() {
 
   /* ===== Alta de movimientos ===== */
   async function addDebt() {
-    if (!canCreate) { toast.error('Selecciona un alumno'); return }
+    if (studentId == null) { toast.error('Selecciona un alumno'); return }
     const amount = parseEuro(debtAmount)
     if (amount <= 0) { toast.warning('Importe inválido', 'La deuda debe ser mayor que cero.'); return }
     await Payments.add({
-      studentId: studentId!,
+      studentId: studentId,                                     // número
       date: new Date(when).toISOString(),
       monthKey: yyyyMM(new Date(when)),
       type: 'debt',
@@ -184,11 +196,11 @@ export default function PagosPage() {
   }
 
   async function addPayment() {
-    if (!canCreate) { toast.error('Selecciona un alumno'); return }
+    if (studentId == null) { toast.error('Selecciona un alumno'); return }
     const amount = parseEuro(payAmount)
     if (amount <= 0) { toast.warning('Importe inválido', 'El pago debe ser mayor que cero.'); return }
     await Payments.add({
-      studentId: studentId!,
+      studentId: studentId,                                     // número
       date: new Date(when).toISOString(),
       monthKey: yyyyMM(new Date(when)),
       type: 'payment',
@@ -363,7 +375,7 @@ export default function PagosPage() {
     }
   `
 
-  const selected = students.find(s => s.id === studentId)
+  const selected = students.find(s => typeof s.id === "number" && s.id === studentId)
   const initials = (name?: string) =>
     (name || '?').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase()
 
@@ -378,10 +390,10 @@ export default function PagosPage() {
             <label>Alumno (obligatorio)</label>
             <div className="select-pro"><select
               value={studentId ?? ''}
-              onChange={(e) => setStudentId(e.target.value ? Number(e.target.value) : null)}
+              onChange={(e) => setStudentId(e.target.value ? Number(e.target.value) : undefined)}
             >
               <option value="">— Elige un alumno —</option>
-              {students.map(s => (
+              {activeStudents.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select></div>
@@ -630,3 +642,5 @@ export default function PagosPage() {
     </div>
   )
 }
+
+
