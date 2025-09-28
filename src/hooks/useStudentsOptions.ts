@@ -11,7 +11,6 @@ export function useStudentsOptions() {
   useEffect(() => {
     let cancelled = false
     setLoading(true); setError(null)
-
     list()
       .then((students: StudentApp[]) => {
         if (cancelled) return
@@ -21,9 +20,8 @@ export function useStudentsOptions() {
           .map(s => ({ value: s.id!, label: s.name }))
         setOptions(opts)
       })
-      .catch((e) => !cancelled && setError(e?.message ?? String(e)))
+      .catch(e => !cancelled && setError(e?.message ?? String(e)))
       .finally(() => !cancelled && setLoading(false))
-
     return () => { cancelled = true }
   }, [])
 
