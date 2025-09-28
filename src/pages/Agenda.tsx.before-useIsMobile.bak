@@ -1,109 +1,32 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   addMonths, addWeeks, addDays,
   endOfMonth, endOfWeek,
   format, isSameDay, isSameMonth, parseISO,
   startOfMonth, startOfWeek
-} from 'date-fns'
-import { es } from 'date-fns/locale'
-
-// 👩‍🎓 alumnos desde Supabase
-import * as Students from '../data/supaStudents'
-import type { StudentApp as Student } from '../data/supaStudents'
-
-/* =================== Tipos locales =================== */
-type CalendarEvent = {
-  id?: number
-  title: string
-  start: Date
-  end: Date
-  color?: string
-  studentId?: number
-}
-type RepeatOptions = {
-  enabled: boolean
-  weekdays?: number[] // 1..7 (L..D)
-  until?: string      // 'YYYY-MM-DD'
-}
-
-/* ====== SHIMS DESARROLLO (no alteran diseño) ====== */
-type Unsub = { unsubscribe: () => void }
-function __liveQueryShim<T>(producer: () => Promise<T> | T) {
-  return {
-    subscribe(next: (v: T) => void): Unsub {
-      Promise.resolve()
-        .then(producer)
-        .then((v) => { try { next(v) } catch {} })
-        .catch(() => {})
-      return { unsubscribe() {} }
-    },
-  }
-}
-const liveQuery: <T>(p: () => Promise<T> | T) => { subscribe: (h: { next: (v: T) => void; error?: (e: unknown) => void }) => Unsub } =
-  (globalThis as any).liveQuery ?? __liveQueryShim
-const db: {
-  classes?: { toArray?: () => Promise<any[]>; add?: (r:any)=>Promise<any>; delete?: (id:number)=>Promise<any>; update?: (id:number,patch:any)=>Promise<any> }
-  students?: { toArray?: () => Promise<any[]>; get?: (id:number)=>Promise<any> }
-  transaction?: (mode:'rw', table:any, fn:()=>Promise<void>) => Promise<void>
-} = (globalThis as any).db ?? {}
-;(globalThis as any).liveQuery = (globalThis as any).liveQuery ?? liveQuery
-;(globalThis as any).db        = (globalThis as any).db        ?? db
-/* ====== FIN SHIMS ====== */
-
-/* =================== Parámetros horario =================== */
-const START_HOUR   = 16 as const
-const END_HOUR     = 22 as const
-
-const HOLIDAYS_ES = new Set([
-  '01-01','01-06','05-01','08-15','10-12','11-01','12-06','12-08','12-25'
-])
-function isHoliday(date: Date): boolean {
-  try { return HOLIDAYS_ES.has(format(date, 'MM-dd')) } catch { return false }
-}
-
-/* =================== Hook móvil =================== */
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined'
-      ? window.matchMedia('(max-width: 720px)').matches
-      : false
-  )
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const mq = window.matchMedia('(max-width: 720px)')
-    const onChange = (ev: MediaQueryListEvent) => setIsMobile(ev.matches)
-    mq.addEventListener?.('change', onChange)
-    mq.addListener?.(onChange as any) // fallback safari viejo
-    return () => {
-      mq.removeEventListener?.('change', onChange)
-      mq.removeListener?.(onChange as any)
-    }
-  }, [])
-
-  return isMobile
-}
-
-/* =================== Página =================== */
+} from 'date-fns';
+import * as Students from '../data/supaStudents';
+import type { StudentApp as Student } from '../data/supaStudents';
 export default function Agenda() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [currentDate, setCurrentDate] = useState<Date>(() => {
     const saved = localStorage.getItem('agenda.currentDate')
     return saved ? new Date(saved) : new Date()
   })
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0) // fuerza a recalcular el mes si cambian datos
   const isMobile = useIsMobile()
 
-  // Reacción a cambios (si usas Dexie/IndexedDB)
+  // ✅ Suscripción reactiva a cambios en IndexedDB (sin refrescar manual)
   useEffect(() => {
     const sub = liveQuery(async () => {
-      const classes  = await db.classes?.toArray?.() ?? []
-      const students = await db.students?.toArray?.() ?? []
-      return { classes, students } as { classes: any[]; students: any[] }
+      const classes = await db.classes.toArray()
+      const students = await db.students.toArray()
+      return { classes, students }
     }).subscribe({
       next: ({ classes, students }) => {
-        const byId = new Map<number, any>(students.map((s: any) => [s.id, s]))
-        const evts: CalendarEvent[] = classes.map((c: any) => ({
+        const byId = new Map(students.map(s => [s.id!, s]))
+        const evts: CalendarEvent[] = classes.map(c => ({
           id: c.id,
           title: byId.get(c.studentId)?.name || c.title,
           start: typeof c.start === 'string' ? parseISO(c.start) : new Date(c.start),
@@ -112,9 +35,11 @@ export default function Agenda() {
           studentId: c.studentId,
         }))
         setEvents(evts)
-        setRefreshKey(k => k + 1)
+        setRefreshKey(k => k + 1) // actualiza cabeceras (contadores del mes)
       },
-      error: (err: unknown) => console.error('liveQuery error', err),
+      error: (err) => {
+        console.error('liveQuery error', err)
+      }
     })
     return () => sub.unsubscribe()
   }, [])
@@ -123,14 +48,28 @@ export default function Agenda() {
     localStorage.setItem('agenda.currentDate', currentDate.toISOString())
   }, [currentDate])
 
+  /* Marco sin tarjeta en móvil (pantalla completa, sin bordes) */
   const frameStyle = isMobile
     ? { maxWidth: '100%', margin: 0, background: 'transparent', borderRadius: 0, boxShadow: 'none' as const }
     : { maxWidth: '1200px', margin: '0 auto', background: 'rgba(255,255,255,0.98)', borderRadius: 20, boxShadow: '0 10px 40px rgba(0,0,0,.06)' }
 
   return (
-    <div style={{ background: 'transparent', minHeight: '100dvh', padding: isMobile ? '8px' : '20px', fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
+    <div
+      style={{
+        background: 'transparent',
+        minHeight: '100dvh',
+        padding: isMobile ? '8px' : '20px',
+        fontFamily: "'Inter','Segoe UI',system-ui,sans-serif"
+      }}
+    >
       <div style={frameStyle}>
-        <div style={{ padding: isMobile ? '8px 10px' : '18px 24px', background: 'transparent', color: '#0f172a', borderRadius: isMobile ? 0 : '20px 20px 0 0' }}>
+        {/* Cabecera de la página */}
+        <div style={{
+          padding: isMobile ? '8px 10px' : '18px 24px',
+          background: 'transparent',
+          color: '#0f172a',
+          borderRadius: isMobile ? 0 : '20px 20px 0 0'
+        }}>
           <h1 style={{ margin: 0, fontWeight: 800, fontSize: isMobile ? 24 : 34 }}>Agenda Sandra</h1>
         </div>
 
@@ -173,7 +112,7 @@ export default function Agenda() {
               events={events}
               onCreateAtSlot={async (_slot, studentId, start, end, repeat) => {
                 if (!studentId || !start || !end) return
-                const student = await db.students?.get?.(studentId)
+                const student = await db.students.get(studentId)
                 if (!student) return
 
                 // 1 sola clase
@@ -182,14 +121,15 @@ export default function Agenda() {
                   const [eH, eM] = end.split(':').map(Number)
                   const st = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), sH, sM)
                   const en = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), eH, eM)
-                  await db.classes?.add?.({ studentId: student.id!, title: 'Clase', start: st.toISOString(), end: en.toISOString() })
+                  await db.classes.add({ studentId: student.id!, title: 'Clase', start: st.toISOString(), end: en.toISOString() })
+                  // No hace falta refrescar: liveQuery lo hace solo
                   return
                 }
 
                 // Repetición semanal
                 const until = repeat.until ? new Date(repeat.until) : addWeeks(currentDate, 8)
                 const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
-                const daysW = (repeat.weekdays ?? []).slice().sort()
+                const daysW = repeat.weekdays!.slice().sort()
                 const [sH, sM] = start.split(':').map(Number)
                 const [eH, eM] = end.split(':').map(Number)
 
@@ -207,17 +147,20 @@ export default function Agenda() {
                 }
                 if (adds.length === 0) return
 
-                await db.transaction?.('rw', db.classes, async () => {
+                await db.transaction('rw', db.classes, async () => {
                   for (const a of adds) {
-                    await db.classes!.add!({ studentId: student.id!, title: 'Clase', start: a.start, end: a.end })
+                    await db.classes.add({ studentId: student.id!, title: 'Clase', start: a.start, end: a.end })
                   }
                 })
+                // liveQuery actualizará la interfaz automáticamente
               }}
               onDeleteEvent={async (id) => {
-                if (typeof id === 'number') await db.classes?.delete?.(id)
+                if (typeof id === 'number') await db.classes.delete(id)
+                // liveQuery actualizará
               }}
               onUpdateEvent={async (id, newStart, newEnd, sid) => {
-                await db.classes?.update?.(id, { start: newStart.toISOString(), end: newEnd.toISOString(), studentId: sid })
+                await db.classes.update(id, { start: newStart.toISOString(), end: newEnd.toISOString(), studentId: sid })
+                // liveQuery actualizará
               }}
             />
           </section>
@@ -227,7 +170,7 @@ export default function Agenda() {
   )
 }
 
-/* =================== Día =================== */
+/* ===== DayTable ===== */
 function DayTable({
   isMobile, date, events,
   onCreateAtSlot, onDeleteEvent, onUpdateEvent
@@ -255,6 +198,7 @@ function DayTable({
     return slots
   }, [])
 
+  // ✅ Sin "as Date" para evitar el error de TSX
   function eventsIn(slot: string) {
     const [hh] = slot.split(':').map(Number)
     const slotStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hh, 0)
@@ -302,7 +246,9 @@ function DayTable({
                               key={String(ev.id)}
                               event={ev}
                               onUpdate={onUpdateEvent}
-                              onDelete={async (id) => { if (onDeleteEvent && typeof id === 'number') await onDeleteEvent(id) }}
+                              onDelete={async (id) => {
+                                if (onDeleteEvent && typeof id === 'number') await onDeleteEvent(id)
+                              }}
                             />
                           ))}
                         </div>
@@ -324,7 +270,7 @@ function DayTable({
   )
 }
 
-/* =================== Crear + Repetir =================== */
+/* ===== Crear + Repetir semanal ===== */
 function InlineAdd({
   slot, onCreate, compact
 }:{
@@ -332,9 +278,8 @@ function InlineAdd({
   onCreate?: (slot: string, studentId?: number, start?: string, end?: string, repeat?: RepeatOptions) => void
   compact?: boolean
 }) {
-  const [students, setStudents] = useState<Student[]>([])
+  const [students, setStudents] = useState<{ id?: number; name: string }[]>([])
   const [sid, setSid] = useState<string>('')
-
   const [start, setStart] = useState<string>(slot)
   const [end, setEnd] = useState<string>(() => {
     const [h] = slot.split(':').map(Number)
@@ -344,17 +289,10 @@ function InlineAdd({
   const weekdayNames = ['L','M','X','J','V','S','D']
   const todayW = ((new Date().getDay() + 6) % 7) + 1
   const [repeatEnabled, setRepeatEnabled] = useState(false)
-  const [repeatWeekdays, setRepeatWeekdays] = useState<number[]>([todayW])
+  const [repeatWeekdays, setRepeatWeekdays] = useState<string[]>([todayW])
   const [repeatUntil, setRepeatUntil] = useState<string>(format(addWeeks(new Date(), 8), 'yyyy-MM-dd'))
 
-  // 🔗 Cargamos ALUMNOS desde Supabase (activos y ordenados)
-  useEffect(() => {
-    (async () => {
-      const list = await Students.list()
-      const activos = list.filter(s => s.active).sort((a, b) => a.name.localeCompare(b.name, 'es'))
-      setStudents(activos)
-    })()
-  }, [])
+  useEffect(() => { (async () => setStudents(await db.students.orderBy('name').toArray()))() }, [])
 
   function toggle(w: number) {
     setRepeatWeekdays(prev => prev.includes(w) ? prev.filter(x => x !== w) : [...prev, w])
@@ -362,21 +300,20 @@ function InlineAdd({
 
   async function create() {
     if (!onCreate || !sid) return
-    const repeat: RepeatOptions = repeatEnabled
-      ? { enabled: true, weekdays: repeatWeekdays, until: repeatUntil }
-      : { enabled: false, weekdays: [] }
+    const repeat = repeatEnabled ? { enabled: true, weekdays: repeatWeekdays, until: repeatUntil } : { enabled: false, weekdays: [] }
     await onCreate(slot, Number(sid), start, end, repeat)
+    // limpiamos el selector (feedback visual de que se añadió)
     setSid('')
   }
 
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={sid} onChange={(e) => setSid(e.target.value)} style={{ minWidth: 160 }}>
-          <option value="">— Elige un alumno —</option>
-          {students.map(s => (
-            <option key={s.id} value={String(s.id)}>{s.name}</option>
-          ))}
+        <select value={sid} onChange={(e) => setSid(e.target.value)} style={{ minWidth: 140 }}>
+          <option value="">— Elige un alumno —</option>{students.filter((s: Student) => s.active).map((s: Student) => (
+  <option key={s.id} value={s.id}>{s.name}</option>
+))}
+          {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {!compact && (
           <>
@@ -387,8 +324,12 @@ function InlineAdd({
         <button onClick={create} disabled={!sid}>Añadir</button>
       </div>
 
-      {/* Repetir semanalmente */}
-      <div style={{ display: 'grid', gap: 6, background: '#fff7fb', border: '1px dashed #ec4899', borderRadius: 12, padding: 8 }}>
+      {/* Bloque repetir: bien contenido en móvil */}
+      <div style={{
+        display: 'grid', gap: 6,
+        background: '#fff7fb', border: '1px dashed #ec4899',
+        borderRadius: 12, padding: 8
+      }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" checked={repeatEnabled} onChange={e => setRepeatEnabled(e.target.checked)} />
           Repetir semanalmente
@@ -423,7 +364,7 @@ function InlineAdd({
   )
 }
 
-/* =================== Píldora editable =================== */
+/* ===== Píldora editable ===== */
 function Pill({
   event, onUpdate, onDelete
 }:{
@@ -471,7 +412,7 @@ function Pill({
   )
 }
 
-/* =================== Resumen lateral =================== */
+/* ===== Resumen día ===== */
 function ResumenPanel({
   date, dayEvents, timeSlots, eventsIn
 }:{
@@ -498,16 +439,26 @@ function ResumenPanel({
   const totalClases = dayEvents.length
   const totalAlumnos = alumnos.length
 
-  const pctColor = (p: number) => (p >= 0.9 ? '#ef4444' : p >= 0.6 ? '#f59e0b' : '#22c55e')
+  const pctColor = (p: number) => {
+    if (p >= 0.9) return '#ef4444'
+    if (p >= 0.6) return '#f59e0b'
+    return '#22c55e'
+  }
 
   return (
     <aside style={{ display: 'grid', gap: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 10 }}>
-        <div style={{ background: 'linear-gradient(135deg,#f472b6,#ec4899)', color: 'white', padding: 14, borderRadius: 14, boxShadow: '0 8px 20px rgba(236,72,153,.25)' }}>
+        <div style={{
+          background: 'linear-gradient(135deg,#f472b6,#ec4899)',
+          color: 'white', padding: 14, borderRadius: 14, boxShadow: '0 8px 20px rgba(236,72,153,.25)'
+        }}>
           <div style={{ opacity: .9 }}>Clases</div>
           <div style={{ fontWeight: 900, fontSize: 24 }}>{totalClases}</div>
         </div>
-        <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: 'white', padding: 14, borderRadius: 14, boxShadow: '0 8px 20px rgba(124,58,237,.25)' }}>
+        <div style={{
+          background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+          color: 'white', padding: 14, borderRadius: 14, boxShadow: '0 8px 20px rgba(124,58,237,.25)'
+        }}>
           <div style={{ opacity: .9 }}>Alumnos</div>
           <div style={{ fontWeight: 900, fontSize: 24 }}>{totalAlumnos}</div>
         </div>
@@ -556,7 +507,7 @@ function ResumenPanel({
   )
 }
 
-/* =================== Mes =================== */
+/* ===== Mes ===== */
 function MonthTable({
   isMobile, date, events, onPickDay, onPrevMonth, onNextMonth, onToday
 }: {
@@ -644,10 +595,6 @@ function MonthTable({
     </section>
   )
 }
-
-
-
-
 
 
 

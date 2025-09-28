@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import * as Students from '../data/supaStudents'
 import type { StudentApp } from '../data/supaStudents'
-import Toggle from '../ui/Toggle';
 
 /* =============== Toast (ligero, sin dependencias) =============== */
 type ToastKind = 'success' | 'error' | 'info'
@@ -345,7 +344,6 @@ export default function Alumnos() {
     </div>
   )
 }
-
 
 
 

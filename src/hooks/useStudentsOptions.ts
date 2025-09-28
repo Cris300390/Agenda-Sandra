@@ -1,28 +1,19 @@
-import { useEffect, useState } from 'react'
-import { list, type StudentApp } from '../data/supaStudents'
-export type Option = { value: string; label: string }
+import { useEffect, useState } from "react";
+import * as Students from "../data/supaStudents";
+import type { StudentApp as Student } from "../data/supaStudents";
+
+export type Option = { value: number; label: string };
 
 export function useStudentsOptions() {
-  const [options, setOptions] = useState<Option[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
+  const [options, setOptions] = useState<Option[]>([]);
   useEffect(() => {
-    let cancelled = false
-    setLoading(true); setError(null)
-    list()
-      .then((students: StudentApp[]) => {
-        if (cancelled) return
-        const opts = students
-          .filter(s => s.active)
-          .sort((a,b)=>a.name.localeCompare(b.name))
-          .map(s => ({ value: s.id!, label: s.name }))
-        setOptions(opts)
-      })
-      .catch(e => !cancelled && setError(e?.message ?? String(e)))
-      .finally(() => !cancelled && setLoading(false))
-    return () => { cancelled = true }
-  }, [])
-
-  return { options, loading, error }
+    (async () => {
+      const list = await Students.list();
+      const activos = list
+        .filter((s: Student) => s.active)
+        .sort((a: Student, b: Student) => a.name.localeCompare(b.name, "es"));
+      setOptions(activos.map((s: Student) => ({ value: Number(s.id), label: s.name })));
+    })();
+  }, []);
+  return options;
 }
