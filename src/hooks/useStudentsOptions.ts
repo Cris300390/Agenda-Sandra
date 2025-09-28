@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { list, type StudentApp } from '../data/supaStudents'
-
 export type Option = { value: string; label: string }
 
 export function useStudentsOptions() {
@@ -14,8 +13,7 @@ export function useStudentsOptions() {
     list()
       .then((students: StudentApp[]) => {
         if (cancelled) return
-        const opts = students
-          .filter(s => s.active)
+        const opts = students.filter(s => s.active)
           .sort((a,b)=>a.name.localeCompare(b.name))
           .map(s => ({ value: s.id!, label: s.name }))
         setOptions(opts)
