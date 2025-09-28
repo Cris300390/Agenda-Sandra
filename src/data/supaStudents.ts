@@ -103,3 +103,14 @@ export function subscribe(onChange: () => void) {
 
   return () => { try { supabase.removeChannel(channel) } catch {} }
 }
+
+export type StudentOption = { value: string; label: string }
+
+/** Opciones de alumnos activos (ordenados por nombre) */
+export async function listActiveOptions(): Promise<StudentOption[]> {
+  const rows = await list()
+  return rows
+    .filter(s => s.active)
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .map(s => ({ value: s.id!, label: s.name }))
+}
