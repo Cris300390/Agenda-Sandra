@@ -1,5 +1,4 @@
 import React from 'react';
-import React, { useEffect, useMemo, useState } from 'react'
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYear, endOfYear } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useToast } from '../ui/Toast'
@@ -641,6 +640,7 @@ export default function PagosPage() {
     </div>
   )
 }
+
 
 
 
