@@ -512,7 +512,3 @@ export default function InformesPage() {
 
 
 
-
-
-
-

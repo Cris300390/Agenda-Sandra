@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { useStudentsOptions } from '../hooks/useStudentsOptions'\nimport { supa } from "../data/supaClient"
+import { useStudentsOptions } from '../hooks/useStudentsOptions'
+import { supa } from "../data/supaClient"
 import { useToast } from "../ui/Toast"
 
 type Props = { monthKey?: string; onChanged?: () => void }
@@ -90,9 +91,6 @@ export default function PagosCleanup({ monthKey, onChanged }: Props) {
     </section>
   )
 }
-
-
-
 
 
 
