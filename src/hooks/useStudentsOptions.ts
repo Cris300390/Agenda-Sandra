@@ -16,7 +16,7 @@ export function useStudentsOptions() {
         if (cancelled) return
         const opts = students
           .filter(s => s.active)
-          .sort((a, b) => a.name.localeCompare(b.name))
+          .sort((a,b)=>a.name.localeCompare(b.name))
           .map(s => ({ value: s.id!, label: s.name }))
         setOptions(opts)
       })
