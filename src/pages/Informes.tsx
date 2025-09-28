@@ -517,3 +517,5 @@ export default function InformesPage() {
 
 
 
+
+import { list as listStudents } from '../data/supaStudents';

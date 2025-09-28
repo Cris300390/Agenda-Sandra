@@ -625,3 +625,5 @@ function MonthTable({
     </section>
   )
 }
+
+import { list as listStudents } from '../data/supaStudents';
