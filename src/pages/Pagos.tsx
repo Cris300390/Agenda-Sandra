@@ -3,7 +3,8 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfYe
 import { es } from 'date-fns/locale'
 import { useToast } from '../ui/Toast'
 import PagosCleanup from '../components/PagosCleanup'
-import React from 'react';
+import React from 'react';
+
 
 // 💳 pagos / movimientos
 import * as Payments from '../data/supaPayments'
