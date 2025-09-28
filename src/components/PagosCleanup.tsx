@@ -1,15 +1,17 @@
 import { useState } from "react"
-import { supa } from "../data/supaClient"
+import { useStudentsOptions } from '../hooks/useStudentsOptions'\nimport { supa } from "../data/supaClient"
 import { useToast } from "../ui/Toast"
 
 type Props = { monthKey?: string; onChanged?: () => void }
 
 export default function PagosCleanup({ monthKey, onChanged }: Props) {
+  const { options, loading, error } = useStudentsOptions();
   const toast = useToast()
   const [busy, setBusy] = useState(false)
   const currentKey = monthKey ?? new Date().toISOString().slice(0, 7)
 
   async function wipeMonth() {
+  const { options, loading, error } = useStudentsOptions();
     const ok = await toast.confirm({
       title: "Borrar historial del mes",
       // Ojo: sin template literals para no romper al pegar por terminal
@@ -33,6 +35,7 @@ export default function PagosCleanup({ monthKey, onChanged }: Props) {
   }
 
   async function removeOrphans() {
+  const { options, loading, error } = useStudentsOptions();
     const ok = await toast.confirm({
       title: "Limpiar movimientos huérfanos",
       message: "Se eliminarán los movimientos sin alumno o asociados a un alumno inexistente.",
@@ -87,3 +90,6 @@ export default function PagosCleanup({ monthKey, onChanged }: Props) {
     </section>
   )
 }
+
+
+

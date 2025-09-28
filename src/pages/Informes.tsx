@@ -52,6 +52,7 @@ const MONTHS = [
 
 /* ===================== Página ===================== */
 export default function InformesPage() {
+  const { options, loading, error } = useStudentsOptions();
   const toast = useToast()
 
   const [payments, setPayments] = useState<Movement[]>([])
@@ -63,6 +64,7 @@ export default function InformesPage() {
 
   // ===== Capa de datos (Supabase + fallback Dexie) =====
   async function loadFromSupabase() {
+  const { options, loading, error } = useStudentsOptions();
     // 1) Movimientos
     const { data: movs, error: errMovs } = await supa
       .from('movimientos')
@@ -104,6 +106,7 @@ export default function InformesPage() {
   }
 
   async function loadFromDexie() {
+  const { options, loading, error } = useStudentsOptions();
     const allMovs: Movement[] = await (db as any).movements.toArray()
     const onlyPay = allMovs
       .filter(m => m.type === 'payment' && Number.isFinite(m.amount))
@@ -116,6 +119,7 @@ export default function InformesPage() {
 
   // Cargar datos (intenta Supabase y cae a Dexie si falla)
   async function load() {
+  const { options, loading, error } = useStudentsOptions();
     try {
       await loadFromSupabase()
     } catch {
@@ -148,6 +152,7 @@ export default function InformesPage() {
     (name || '?').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase()
 
   const colorFromName = (name?: string) => {
+  const { options, loading, error } = useStudentsOptions();
     const src = (name || 'X')
     const n = src.charCodeAt(0) + src.charCodeAt(src.length - 1)
     const palette = ['#f472b6','#6366f1','#10b981','#0ea5e9','#f59e0b','#84cc16','#06b6d4','#db2777','#7c3aed']
@@ -221,6 +226,7 @@ export default function InformesPage() {
 
   // === Cobros por alumno (año y mes) ===
   function groupByStudent(start: Date, end: Date) {
+  const { options, loading, error } = useStudentsOptions();
     const inRange = payments.filter(m =>
       isWithinInterval(parseISO(m.date), { start, end }) &&
       typeof m.studentId === 'number'
@@ -281,6 +287,7 @@ export default function InformesPage() {
 
   // Tooltip personalizado
   const CurrencyTooltip = ({ active, payload, label }: any) => {
+  const { options, loading, error } = useStudentsOptions();
     if (!active || !payload?.length) return null
     const v = payload[0].value as number
     return (
@@ -293,6 +300,7 @@ export default function InformesPage() {
 
   // Clic en barra de meses → cambia el mes (seguro para TS)
   const onMonthBarClick = (data: any) => {
+  const { options, loading, error } = useStudentsOptions();
     const payload = data && (data.payload || data.activePayload?.[0]?.payload)
     if (payload && typeof payload.m === 'number') setMonth(payload.m)
   }
@@ -304,6 +312,7 @@ export default function InformesPage() {
 
   // ===== Resetear todo el histórico de movimientos (pagos/deudas) =====
   async function resetAllData() {
+  const { options, loading, error } = useStudentsOptions();
     const ok = await toast.confirm({
       title: 'Resetear datos de pagos',
       message:
@@ -500,3 +509,6 @@ export default function InformesPage() {
     </div>
   )
 }
+
+
+
