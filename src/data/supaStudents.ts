@@ -1,112 +1,74 @@
-import { supabase } from "./supaClient"
+import { getSupabase } from "../lib/supabaseClient"
 
-/** Tablas: vista de lectura y tabla de escritura */
-const TABLE_READ  = "alumnos_ui"
-const TABLE_WRITE = "alumnos"
-
-/** Filas BD (nombres en español) */
-export type StudentDb = {
-  id: string            // uuid
-  nombre: string
-  activo: boolean
-  precio: number | null
-  nota: string | null
+/** Esquema REAL en BD (usa "nombre") */
+export type StudentRow = {
+  id: string
+  nombre: string | null
+  fullname: string | null
+  course: string | null
+  age: number | null
+  repeat: boolean | null
+  subjects: string[] | string | null
+  notes: string | null
+  next_notes: string | null
+  active: boolean | null
   created_at: string | null
 }
 
-/** Tipo que usa la app (en inglés) */
-export type StudentApp = {
-  id?: string
-  name: string
-  active: boolean
-  price?: number | null
-  note?: string | null
-  createdAt?: string | null
+/** Tipo para la app (acepta también "name") */
+export type StudentApp = Partial<StudentRow> & { id: string } & { name?: string | null }
+
+const TABLE = "alumnos"
+
+/** Normaliza: copia name -> nombre y quita name antes de enviar a BD */
+function normalizePayload(p: any): Partial<StudentRow> {
+  const out: any = { ...p }
+  if (out.nombre == null && out.name != null) out.nombre = out.name
+  delete out.name
+  return out as Partial<StudentRow>
 }
 
-/** Mapeos */
-function toApp(r: StudentDb): StudentApp {
-  return {
-    id: r.id,
-    name: r.nombre,
-    active: r.activo,
-    price: r.precio,
-    note: r.nota,
-    createdAt: r.created_at,
-  }
-}
-
-function toDb(p: Partial<StudentApp>): Partial<StudentDb> {
-  return {
-    ...(p.name   !== undefined ? { nombre: p.name } : {}),
-    ...(p.active !== undefined ? { activo: p.active } : {}),
-    ...(p.price  !== undefined ? { precio: p.price ?? null } : {}),
-    ...(p.note   !== undefined ? { nota: p.note ?? null } : {}),
-  }
-}
-
-/** ===== CRUD ===== */
-
-/** Lista para la app (lee de la vista) */
+/** Listar TODOS */
 export async function list(): Promise<StudentApp[]> {
-  const { data, error } = await supabase
-    .from(TABLE_READ)
-    .select("id, nombre, activo, precio, nota, created_at")
-    .order("nombre", { ascending: true })
-
+  const supa = await getSupabase()
+  const { data, error } = await supa.from<StudentRow, StudentRow>(TABLE).select("*")
   if (error) throw error
-  return (data ?? []).map(toApp)
+  return (data ?? []).map(r => ({ ...r, name: r.nombre })) as StudentApp[]
 }
 
-/** Crear (escribe en la tabla real) */
-export async function create(values: Partial<StudentApp>): Promise<StudentApp> {
-  const payload = toDb(values)
-  const { data, error } = await supabase
-    .from(TABLE_WRITE)
-    .insert(payload)
-    .select("id, nombre, activo, precio, nota, created_at")
-    .single()
-
+/** Listar SOLO activos (true o null) */
+export async function listActive(): Promise<StudentApp[]> {
+  const supa = await getSupabase()
+  const { data, error } = await supa
+    .from<StudentRow, StudentRow>(TABLE)
+    .select("*")
+    .or("active.is.null,active.eq.true")
   if (error) throw error
-  return toApp(data as StudentDb)
+  return (data ?? []).map(r => ({ ...r, name: r.nombre })) as StudentApp[]
 }
 
-/** Actualizar (tabla real) */
-export async function update(id: string, values: Partial<StudentApp>): Promise<StudentApp> {
-  const payload = toDb(values)
-  const { data, error } = await supabase
-    .from(TABLE_WRITE)
-    .update(payload)
+/** Crear */
+export async function create(payload: Partial<StudentRow> | { name?: string | null }) {
+  const supa = await getSupabase()
+  const clean = normalizePayload(payload)
+  const { error } = await supa.from<StudentRow, StudentRow>(TABLE).insert([clean as StudentRow])
+  if (error) throw error
+}
+
+/** Actualizar por id */
+export async function update(id: string, changes: Partial<StudentRow> | { name?: string | null }) {
+  const supa = await getSupabase()
+  const clean = normalizePayload(changes)
+  const { error } = await supa
+    .from<StudentRow, StudentRow>(TABLE)
+    .update(clean as Partial<StudentRow>)
     .eq("id", id)
-    .select("id, nombre, activo, precio, nota, created_at")
-    .single()
-
-  if (error) throw error
-  return toApp(data as StudentDb)
-}
-
-/** Borrar (tabla real) */
-export async function remove(id: string): Promise<void> {
-  const { error } = await supabase
-    .from(TABLE_WRITE)
-    .delete()
-    .eq("id", id)
-
   if (error) throw error
 }
 
-/** Opciones para selects (solo activos) */
-export type StudentOption = { value: string; label: string }
-
-export async function listActiveOptions(): Promise<StudentOption[]> {
-  const { data, error } = await supabase
-    .from(TABLE_READ)
-    .select("id, nombre, activo")
-    .eq("activo", true)
-    .order("nombre", { ascending: true })
-
+/** Eliminar por id */
+export async function remove(id: string) {
+  const supa = await getSupabase()
+  const { error } = await supa.from<StudentRow, StudentRow>(TABLE).delete().eq("id", id)
   if (error) throw error
-  return (data ?? [])
-    .filter((r: any) => r.activo === true)
-    .map((r: any) => ({ value: r.id as string, label: r.nombre as string }))
 }
