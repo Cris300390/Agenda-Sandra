@@ -1,19 +1,48 @@
-import { useEffect, useState } from "react";
-import * as Students from "../data/supaStudents";
-import type { StudentApp as Student } from "../data/supaStudents";
+// src/hooks/useStudentsOptions.ts
+import { useEffect, useMemo, useState } from 'react'
+import { list as listStudents } from '../data/supaStudents'
 
-export type Option = { value: number; label: string };
+// Opción para los <select>
+export type StudentOption = { value: string; label: string; active: boolean }
 
+/**
+ * Carga alumnos desde Supabase y devuelve opciones ordenadas para los selects.
+ * - Solo lista activos (active !== false)
+ * - Orden alfabético en español
+ */
 export function useStudentsOptions() {
-  const [options, setOptions] = useState<Option[]>([]);
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [students, setStudents] = useState<Array<{ id: string; name: string | null; active?: boolean }>>([])
+
   useEffect(() => {
-    (async () => {
-      const list = await Students.list();
-      const activos = list
-        .filter((s: Student) => s.active)
-        .sort((a: Student, b: Student) => a.name.localeCompare(b.name, "es"));
-      setOptions(activos.map((s: Student) => ({ value: Number(s.id), label: s.name })));
-    })();
-  }, []);
-  return options;
+    let cancel = false
+    ;(async () => {
+      try {
+        setLoading(true)
+        const rows = await listStudents() // ← ya tienes este helper apuntando a Supabase
+        if (!cancel) setStudents(rows as any)
+      } catch (e: any) {
+        if (!cancel) setError(e?.message ?? 'Error cargando alumnos')
+      } finally {
+        if (!cancel) setLoading(false)
+      }
+    })()
+    return () => { cancel = true }
+  }, [])
+
+  const options: StudentOption[] = useMemo(() => {
+    return students
+      .filter(s => s.active !== false)
+      .map(s => ({
+        value: s.id,
+        label: s.name ?? 'Sin nombre',
+        active: s.active !== false,
+      }))
+      .sort((a, b) =>
+        (a.label ?? '').localeCompare((b.label ?? ''), 'es', { sensitivity: 'base' })
+      )
+  }, [students])
+
+  return { options, loading, error, raw: students }
 }

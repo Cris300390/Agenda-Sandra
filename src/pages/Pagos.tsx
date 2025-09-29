@@ -4,12 +4,14 @@ import { es } from 'date-fns/locale'
 import { useToast } from '../ui/Toast'
 import PagosCleanup from '../components/PagosCleanup'
 
+// ✅ Hook de alumnos (desde Supabase)
+import { useStudentsOptions } from '../hooks/useStudentsOptions'
+
 // 💳 pagos / movimientos
 import * as Payments from '../data/supaPayments'
 import type { Movement, MovementType, Payer } from '../data/supaPayments'
 
-// 👩‍🎓 alumnos (Supabase)
-import { list as listStudents } from '../data/supaStudents'
+// Tipado de alumno (para usar con raw)
 import type { StudentApp as Student } from '../data/supaStudents'
 
 /* ===== Utiles ===== */
@@ -26,8 +28,7 @@ const yyyyMM = (d: Date) => format(d, 'yyyy-MM')
 export default function PagosPage() {
   const toast = useToast()
 
-  // 🔁 AHORA: id de alumno es STRING (UUID)
-  const [students, setStudents] = useState<Student[]>([])
+  // 🔁 id de alumno es STRING (UUID)
   const [studentId, setStudentId] = useState<string | undefined>(undefined)
 
   // Formulario
@@ -37,20 +38,17 @@ export default function PagosPage() {
   const [payAmount, setPayAmount] = useState<string>('')   // vacío por defecto
   const [payer, setPayer] = useState<Payer>('ns')
 
-  // Datos
+  // Datos de movimientos
   const [items, setItems] = useState<Movement[]>([])
 
-  // Cargar movimientos + alumnos (solo activos)
+  // ✅ Alumnos desde el hook (Supabase)
+  const { options: studentOptions, raw: students } = useStudentsOptions()
+
+  // Cargar movimientos
   async function load() {
-    // Movimientos
     const movs: Movement[] = await Payments.list()
     movs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     setItems(movs)
-
-    // Alumnos
-    const sts: Student[] = await listStudents()
-    sts.sort((a, b) => a.name.localeCompare(b.name, 'es'))
-    setStudents(sts)
   }
   useEffect(() => { load() }, [])
 
@@ -67,16 +65,21 @@ export default function PagosPage() {
     return () => unsub?.()
   }, [])
 
-  // Opciones SOLO de alumnos activos, ya ordenadas
-  const activeStudents = useMemo(
-    () => students.filter(s => s.active).sort((a, b) => a.name.localeCompare(b.name, 'es')),
+  // Opciones SOLO de alumnos activos (por si necesitas la lista "cruda")
+  const activeStudents: Student[] = useMemo(
+    () =>
+      (students || [])
+        .filter(s => s.active)
+        .sort((a, b) => (a?.name ?? '').localeCompare((b?.name ?? ''), 'es', { sensitivity: 'base' })),
     [students]
   )
 
-  // 🔁 Mapa id -> nombre para resúmenes (clave string)
+  // 🔁 Mapa id -> nombre para resúmenes
   const nameById = useMemo(() => {
     const m = new Map<string, string>()
-    students.forEach(s => { if (typeof s.id === 'string') m.set(s.id, s.name) })
+    ;(students || []).forEach(s => {
+      if (typeof s.id === 'string') m.set(s.id, s.name ?? 'Alumno')
+    })
     return m
   }, [students])
 
@@ -88,7 +91,7 @@ export default function PagosPage() {
     return { start: startOfMonth(base), end: endOfMonth(base) }
   }, [when])
 
-  // Movimientos del mes por alumno (comparación por STRING)
+  // Movimientos del mes por alumno
   const monthItems = useMemo(() => {
     return items.filter(m =>
       typeof studentId === 'string' &&
@@ -114,7 +117,7 @@ export default function PagosPage() {
     })
   }, [monthItems])
 
-  // Resumen del mes de TODOS los alumnos (agrupando por STRING)
+  // Resumen del mes de TODOS los alumnos
   const perStudentMonth = useMemo(() => {
     const inMonth = items.filter(m =>
       isWithinInterval(parseISO(m.date), { start: range.start, end: range.end })
@@ -130,7 +133,11 @@ export default function PagosPage() {
     }
     for (const v of acc.values()) v.pendiente = v.deuda - v.pagado
     const list = Array.from(acc.values()).filter(v => v.deuda > 0 || v.pagado > 0)
-    list.sort((a, b) => b.pendiente - a.pendiente || a.name.localeCompare(b.name, 'es'))
+    list.sort(
+      (a, b) =>
+        b.pendiente - a.pendiente ||
+        (a.name ?? '').localeCompare((b.name ?? ''), 'es', { sensitivity: 'base' })
+    )
     return list
   }, [items, range, nameById])
 
@@ -139,11 +146,15 @@ export default function PagosPage() {
     const ok = perStudentMonth
       .filter(s => s.pendiente <= 0)
       .map(s => ({ id: s.id, name: s.name }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .sort((a, b) => (a.name ?? '').localeCompare((b.name ?? ''), 'es', { sensitivity: 'base' }))
     const debt = perStudentMonth
       .filter(s => s.pendiente > 0)
       .map(s => ({ id: s.id, name: s.name, amount: s.pendiente }))
-      .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name, 'es'))
+      .sort(
+        (a, b) =>
+          b.amount - a.amount ||
+          (a.name ?? '').localeCompare((b.name ?? ''), 'es', { sensitivity: 'base' })
+      )
     return { ok, debt }
   }, [perStudentMonth])
 
@@ -180,7 +191,7 @@ export default function PagosPage() {
     const amount = parseEuro(debtAmount)
     if (amount <= 0) { toast.warning('Importe inválido', 'La deuda debe ser mayor que cero.'); return }
     await Payments.add({
-      studentId: studentId,                                     // ← ahora STRING
+      studentId: studentId,
       date: new Date(when).toISOString(),
       monthKey: yyyyMM(new Date(when)),
       type: 'debt',
@@ -198,7 +209,7 @@ export default function PagosPage() {
     const amount = parseEuro(payAmount)
     if (amount <= 0) { toast.warning('Importe inválido', 'El pago debe ser mayor que cero.'); return }
     await Payments.add({
-      studentId: studentId,                                     // ← ahora STRING
+      studentId: studentId,
       date: new Date(when).toISOString(),
       monthKey: yyyyMM(new Date(when)),
       type: 'payment',
@@ -373,7 +384,7 @@ export default function PagosPage() {
     }
   `
 
-  const selected = students.find(s => typeof s.id === 'string' && s.id === studentId)
+  const selected = (students || []).find(s => typeof s.id === 'string' && s.id === studentId)
   const initials = (name?: string) =>
     (name || '?').trim().split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase()
 
@@ -391,8 +402,8 @@ export default function PagosPage() {
               onChange={(e) => setStudentId(e.target.value || undefined)}
             >
               <option value="">— Elige un alumno —</option>
-              {activeStudents.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {studentOptions.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select></div>
           </div>
@@ -445,7 +456,7 @@ export default function PagosPage() {
 
         {selected && (
           <p className="muted" style={{ marginTop: 8 }}>
-            Trabajando con: <strong>{selected.name}</strong>
+            Trabajando con: <strong>{selected.name ?? 'Alumno'}</strong>
           </p>
         )}
       </section>
@@ -509,7 +520,7 @@ export default function PagosPage() {
       <section className="block">
         <h3 style={{ margin: '0 0 10px' }}>
           Movimientos de {format(new Date(when), 'MMMM yyyy', { locale: es })}
-          {selected && <> — {selected.name}</>}
+          {selected && <> — {selected.name ?? 'Alumno'}</>}
         </h3>
 
         <div className="table-wrap">
@@ -599,7 +610,7 @@ export default function PagosPage() {
       {selected && (
         <section className="block">
           <h3 style={{ margin: '0 0 10px' }}>
-            Historial mensual — {selected.name} (año {format(new Date(when), 'yyyy')})
+            Historial mensual — {selected.name ?? 'Alumno'} (año {format(new Date(when), 'yyyy')})
           </h3>
 
           <div className="history">
@@ -640,4 +651,3 @@ export default function PagosPage() {
     </div>
   )
 }
-
