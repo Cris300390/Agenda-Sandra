@@ -1,91 +1,49 @@
-// src/App.tsx
-import { NavLink, Route, Routes, Navigate } from "react-router-dom"
-
-// Ilustraciones laterales (opcional)
-import SideDecor from "./components/SideDecor"
-
-// Páginas
-import Agenda from "./pages/Agenda"
+import { Routes, Route, NavLink, Navigate } from "react-router-dom"
+import Home from "./pages/Home"
 import Alumnos from "./pages/Alumnos"
 import Pagos from "./pages/Pagos"
+import Agenda from "./pages/Agenda"
 import Informes from "./pages/Informes"
-import Home from "./pages/Home" // si no lo usas, puedes borrarlo
+import "./app.css"
+
+function LinkItem({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        "nav-link" + (isActive ? " nav-link--active" : "")
+      }
+      end
+    >
+      {children}
+    </NavLink>
+  )
+}
 
 export default function App() {
   return (
-    <>
-      {/* ENCABEZADO NUEVO (profesional) */}
-      <div className="topbar-wrap">
-        <div className="topbar">
-          <h1 className="brand">Las clases de Sandra</h1>
+    <div className="app">
+      <header className="topbar">
+        <h1 className="brand">Agenda Sandra</h1>
+        <nav className="nav">
+          <LinkItem to="/">Inicio</LinkItem>
+          <LinkItem to="/alumnos">Alumnos</LinkItem>
+          <LinkItem to="/pagos">Pagos</LinkItem>
+          <LinkItem to="/agenda">Agenda</LinkItem>
+          <LinkItem to="/informes">Informes</LinkItem>
+        </nav>
+      </header>
 
-          <nav className="tabs">
-            <NavLink
-              to="/agenda"
-              className={({ isActive }) =>
-                "pill pill--agenda" + (isActive ? " is-active" : "")
-              }
-            >
-              Agenda
-            </NavLink>
-
-            <NavLink
-              to="/alumnos"
-              className={({ isActive }) =>
-                "pill pill--alumnos" + (isActive ? " is-active" : "")
-              }
-            >
-              Alumnos
-            </NavLink>
-
-            <NavLink
-              to="/pagos"
-              className={({ isActive }) =>
-                "pill pill--pagos" + (isActive ? " is-active" : "")
-              }
-            >
-              Pagos
-            </NavLink>
-
-            <NavLink
-              to="/informes"
-              className={({ isActive }) =>
-                "pill pill--informes" + (isActive ? " is-active" : "")
-              }
-            >
-              Informes
-            </NavLink>
-          </nav>
-        </div>
-      </div>
-
-      {/* Ilustraciones laterales (no bloquean clics) */}
-      <SideDecor />
-
-      {/* Contenido principal */}
-      <main className="main">
+      <main className="container">
         <Routes>
-          {/* Si alguien entra a / o a /home, lo mandamos a Agenda */}
-          <Route path="/" element={<Navigate to="/agenda" replace />} />
-          <Route path="/home" element={<Navigate to="/agenda" replace />} />
-
-          <Route path="/agenda" element={<Agenda />} />
+          <Route path="/" element={<Home />} />
           <Route path="/alumnos" element={<Alumnos />} />
           <Route path="/pagos" element={<Pagos />} />
+          <Route path="/agenda" element={<Agenda />} />
           <Route path="/informes" element={<Informes />} />
-
-          {/* 404 simple */}
-          <Route
-            path="*"
-            element={
-              <div className="card mt-6">
-                <h2 className="mt-0">Página no encontrada</h2>
-                <p>Usa las pestañas de arriba para navegar.</p>
-              </div>
-            }
-          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-    </>
+    </div>
   )
 }
